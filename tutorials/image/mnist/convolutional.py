@@ -50,7 +50,6 @@ EVAL_FREQUENCY = 100  # Number of steps between evaluations.
 
 FLAGS = None
 
-
 def data_type():
   """Return the type of the activations, weights, and placeholder variables."""
   if FLAGS.use_fp16:
@@ -163,24 +162,24 @@ def main(_):
   conv1_weights = tf.Variable(
       tf.truncated_normal([5, 5, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
                           stddev=0.1,
-                          seed=SEED, dtype=data_type()))
-  conv1_biases = tf.Variable(tf.zeros([32], dtype=data_type()))
+                          seed=SEED, dtype=data_type()), name='conv1_weights')
+  conv1_biases = tf.Variable(tf.zeros([32], dtype=data_type()), name='conv1_biases')
   conv2_weights = tf.Variable(tf.truncated_normal(
       [5, 5, 32, 64], stddev=0.1,
-      seed=SEED, dtype=data_type()))
-  conv2_biases = tf.Variable(tf.constant(0.1, shape=[64], dtype=data_type()))
+      seed=SEED, dtype=data_type()),name='conv2_weights')
+  conv2_biases = tf.Variable(tf.constant(0.1, shape=[64], dtype=data_type()),name='conv2_biases')
   fc1_weights = tf.Variable(  # fully connected, depth 512.
       tf.truncated_normal([IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512],
                           stddev=0.1,
                           seed=SEED,
-                          dtype=data_type()))
-  fc1_biases = tf.Variable(tf.constant(0.1, shape=[512], dtype=data_type()))
+                          dtype=data_type()),name='fc1_weights')
+  fc1_biases = tf.Variable(tf.constant(0.1, shape=[512], dtype=data_type()), name='fc1_biases')
   fc2_weights = tf.Variable(tf.truncated_normal([512, NUM_LABELS],
                                                 stddev=0.1,
                                                 seed=SEED,
-                                                dtype=data_type()))
+                                                dtype=data_type()), name='fc2_weights')
   fc2_biases = tf.Variable(tf.constant(
-      0.1, shape=[NUM_LABELS], dtype=data_type()))
+      0.1, shape=[NUM_LABELS], dtype=data_type()),name='fc2_biases')
 
   # We will replicate the model structure for the training subgraph, as well
   # as the evaluation subgraphs, while sharing the trainable parameters.
@@ -231,10 +230,73 @@ def main(_):
       labels=train_labels_node, logits=logits))
 
   # L2 regularization for the fully connected parameters.
-  regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
+  # regularizers = (tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
+  #                 tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
+
+  # add weights and biases of conv1 and conv2. added by Yandan:
+  regularizers = (tf.nn.l2_loss(conv1_weights) + tf.nn.l2_loss(conv1_biases) +
+                  tf.nn.l2_loss(conv2_weights) + tf.nn.l2_loss(conv2_biases) +
+                  tf.nn.l2_loss(fc1_weights) + tf.nn.l2_loss(fc1_biases) +
                   tf.nn.l2_loss(fc2_weights) + tf.nn.l2_loss(fc2_biases))
+
+  # regularizers = (tf.nn.l1_loss(conv1_weights) + tf.nn.l1_loss(conv1_biases) +
+  #                 tf.nn.l1_loss(conv2_weights) + tf.nn.l1_loss(conv2_biases) +
+  #                 tf.nn.l1_loss(fc1_weights) + tf.nn.l1_loss(fc1_biases) +
+  #                 tf.nn.l1_loss(fc2_weights) + tf.nn.l1_loss(fc2_biases))
+
+  #quantification values: conv1: 0, 0.36, -0.36; conv2: 0, 0.07, -0.07; ip1: 0, 0.02, -0.02; ip2: 0, 0.18, -0.18
+  # quan_pair_conv1 = tf.constant([-0.18, 0.18])
+  # quan_pair_conv2 = tf.constant([-0.035, 0.035])
+  # quan_pair_fc1 = tf.constant([-0.01, 0.01])
+  # quan_pair_fc2 = tf.constant([-0.09, 0.09])
+
+  f1_conv1 = tf.sign(conv1_weights + 0.36)*(conv1_weights + 0.36)
+  f2_conv1 = tf.sign(conv1_weights ) * conv1_weights
+  f3_conv1 = tf.sign(conv1_weights - 0.36) * (conv1_weights - 0.36)
+
+  f1_conv2 = tf.sign(conv2_weights + 0.07) * (conv2_weights + 0.07)
+  f2_conv2 = tf.sign(conv2_weights) * conv2_weights
+  f3_conv2 = tf.sign(conv2_weights - 0.07) * (conv2_weights - 0.07)
+
+  f1_fc1 = tf.sign(fc1_weights + 0.02) * (fc1_weights + 0.02)
+  f2_fc1 = tf.sign(fc1_weights) * fc1_weights
+  f3_fc1 = tf.sign(fc1_weights - 0.02) * (fc1_weights - 0.02)
+
+  f1_fc2 = tf.sign(fc2_weights + 0.18) * (fc2_weights + 0.18)
+  f2_fc2 = tf.sign(fc2_weights) * fc2_weights
+  f3_fc2 = tf.sign(fc2_weights - 0.18) * (fc2_weights - 0.18)
+
+
+
+  conv1_regularizers = tf.where(tf.less(conv1_weights, -0.18), f1_conv1, tf.where(tf.less(conv1_weights, 0.18), f2_conv1, f3_conv1))
+  conv2_regularizers = tf.where(tf.less(conv2_weights, -0.035), f1_conv2, tf.where(tf.less(conv2_weights, 0.035), f2_conv2, f3_conv2))
+  fc1_regularizers = tf.where(tf.less(fc1_weights, -0.01), f1_fc1, tf.where(tf.less(fc1_weights, 0.01), f2_fc1, f3_fc1))
+  fc2_regularizers = tf.where(tf.less(fc2_weights, -0.09), f1_fc2, tf.where(tf.less(fc2_weights, 0.09), f2_fc2, f3_fc2))
+
+  quantify_regularizers=(tf.reduce_sum(conv1_regularizers) +
+                        tf.reduce_sum(conv2_regularizers) +
+                        tf.reduce_sum(fc1_regularizers) +
+                        tf.reduce_sum(fc2_regularizers))
+  #quantify_regularizers=0
+  # a = tf.constant(1)
+  a = tf.Variable(1.,trainable=False, name='a')
+
+  a = tf.assign(a, tf.subtract(a, 0.0001))
+  tf.summary.scalar(a.op.name, a)
+  # a = tf.add(a, 0.0001)
+  deformable_regularizers=a*regularizers+(1-a)*quantify_regularizers
+  # deformable_regularizers = 0.5*regularizers + 0.5* quantify_regularizers
+
   # Add the regularization term to the loss.
-  loss += 5e-4 * regularizers
+  # loss += 5e-4 * regularizers
+  # loss += 5e-4 * quantify_regularizers
+  loss += 5e-4 * deformable_regularizers
+  # loss += 5e-4 * (regularizers+quantify_regularizers)
+  # loss += 5e-4 * (regularizers + deformable_regularizers)
+
+
+  for var in tf.trainable_variables():
+      tf.summary.histogram(var.op.name, var)
 
   # Optimizer: set up a variable that's incremented once per batch and
   # controls the learning rate decay.
@@ -257,6 +319,10 @@ def main(_):
   # Predictions for the test and validation, which we'll compute less often.
   eval_prediction = tf.nn.softmax(model(eval_data))
 
+  summaries = tf.get_collection(tf.GraphKeys.SUMMARIES)
+  # Build the summary operation from the last tower summaries.
+  summary_op = tf.summary.merge(summaries)
+
   # Small utility function to evaluate a dataset by feeding batches of data to
   # {eval_data} and pulling the results from {eval_predictions}.
   # Saves memory and enables this to run on smaller GPUs.
@@ -278,6 +344,10 @@ def main(_):
             feed_dict={eval_data: data[-EVAL_BATCH_SIZE:, ...]})
         predictions[begin:, :] = batch_predictions[begin - size:, :]
     return predictions
+
+  summary_writer = tf.summary.FileWriter(
+      './tb',
+      graph=tf.get_default_graph())
 
   # Create a local session to run the training.
   start_time = time.time()
@@ -313,13 +383,19 @@ def main(_):
         print('Validation error: %.1f%%' % error_rate(
             eval_in_batches(validation_data, sess), validation_labels))
         sys.stdout.flush()
+      if step % 100 == 0:
+          summary_str = sess.run(summary_op)
+          summary_writer.add_summary(summary_str, step)
+
     # Finally print the result!
     test_error = error_rate(eval_in_batches(test_data, sess), test_labels)
+    tf.summary.scalar('test_error', test_error)
     print('Test error: %.1f%%' % test_error)
     if FLAGS.self_test:
       print('test_error', test_error)
       assert test_error == 0.0, 'expected 0.0 test_error, got %.2f' % (
           test_error,)
+  #print(sess.run(quantify_regularizers))
 
 
 if __name__ == '__main__':
