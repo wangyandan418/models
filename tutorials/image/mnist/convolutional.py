@@ -31,6 +31,7 @@ import time
 
 import numpy
 from six.moves import urllib
+from tensorflow.core.framework import summary_pb2
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
 
@@ -43,7 +44,7 @@ NUM_LABELS = 10
 VALIDATION_SIZE = 5000  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 64
-NUM_EPOCHS = 10
+NUM_EPOCHS = 20
 EVAL_BATCH_SIZE = 64
 EVAL_FREQUENCY = 100  # Number of steps between evaluations.
 
@@ -57,6 +58,10 @@ def data_type():
   else:
     return tf.float32
 
+def write_scalar_summary(summary_writer, tag, value, step):
+  value = summary_pb2.Summary.Value(tag=tag, simple_value=float(value))
+  summary = summary_pb2.Summary(value=[value])
+  summary_writer.add_summary(summary, step)
 
 def maybe_download(filename):
   """Download the data from Yann's website, unless it's already here."""
@@ -280,9 +285,11 @@ def main(_):
   #quantify_regularizers=0
   # a = tf.constant(1)
   a = tf.Variable(1.,trainable=False, name='a')
-
-  a = tf.assign(a, tf.subtract(a, 0.0001))
   tf.summary.scalar(a.op.name, a)
+  #a = tf.assign(a, tf.subtract(a, 0.00005))
+  batch = tf.Variable(0, dtype=data_type())
+  a = tf.assign(a, tf.add(tf.multiply(tf.divide(-1.0, (int(num_epochs * train_size) // BATCH_SIZE)),batch), 1))
+  # a = tf.assign(a,tf.sqrt(1.0-tf.divide(tf.square(batch), tf.cast(tf.square(int(num_epochs * train_size) // BATCH_SIZE),tf.float32))))
   # a = tf.add(a, 0.0001)
   deformable_regularizers=a*regularizers+(1-a)*quantify_regularizers
   # deformable_regularizers = 0.5*regularizers + 0.5* quantify_regularizers
@@ -290,7 +297,7 @@ def main(_):
   # Add the regularization term to the loss.
   # loss += 5e-4 * regularizers
   # loss += 5e-4 * quantify_regularizers
-  loss += 5e-4 * deformable_regularizers
+  loss += 5e-3 * deformable_regularizers
   # loss += 5e-4 * (regularizers+quantify_regularizers)
   # loss += 5e-4 * (regularizers + deformable_regularizers)
 
@@ -300,14 +307,15 @@ def main(_):
 
   # Optimizer: set up a variable that's incremented once per batch and
   # controls the learning rate decay.
-  batch = tf.Variable(0, dtype=data_type())
+
   # Decay once per epoch, using an exponential schedule starting at 0.01.
   learning_rate = tf.train.exponential_decay(
       0.01,                # Base learning rate.
       batch * BATCH_SIZE,  # Current index into the dataset.
       train_size,          # Decay step.
-      0.95,                # Decay rate.
+      0.975,                # Decay rate.
       staircase=True)
+  tf.summary.scalar('learning_rate',learning_rate)
   # Use simple momentum for the optimization.
   optimizer = tf.train.MomentumOptimizer(learning_rate,
                                          0.9).minimize(loss,
@@ -323,7 +331,7 @@ def main(_):
   # Build the summary operation from the last tower summaries.
   summary_op = tf.summary.merge(summaries)
 
-  # Small utility function to evaluate a dataset by feeding batches of data to
+  # Small utility function to evaluate a dataset by fe     eding batches of data to
   # {eval_data} and pulling the results from {eval_predictions}.
   # Saves memory and enables this to run on smaller GPUs.
   def eval_in_batches(data, sess):
@@ -382,6 +390,9 @@ def main(_):
         print('Minibatch error: %.1f%%' % error_rate(predictions, batch_labels))
         print('Validation error: %.1f%%' % error_rate(
             eval_in_batches(validation_data, sess), validation_labels))
+        Validation_error = error_rate(
+            eval_in_batches(validation_data, sess), validation_labels)
+        write_scalar_summary(summary_writer, 'error', Validation_error, step)
         sys.stdout.flush()
       if step % 100 == 0:
           summary_str = sess.run(summary_op)
@@ -389,13 +400,13 @@ def main(_):
 
     # Finally print the result!
     test_error = error_rate(eval_in_batches(test_data, sess), test_labels)
-    tf.summary.scalar('test_error', test_error)
+    # tf.summary.scalar('test_error', test_error)
     print('Test error: %.1f%%' % test_error)
     if FLAGS.self_test:
       print('test_error', test_error)
       assert test_error == 0.0, 'expected 0.0 test_error, got %.2f' % (
           test_error,)
-  #print(sess.run(quantify_regularizers))
+
 
 
 if __name__ == '__main__':
