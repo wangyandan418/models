@@ -45,10 +45,15 @@ import cifar10
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
+# tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
+#                            """Directory where to write event logs """
+#                            """and checkpoint.""")
+tf.app.flags.DEFINE_string('train_dir', './tb/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_steps', 1000000,
+# tf.app.flags.DEFINE_integer('max_steps', 1000000,
+#                             """Number of batches to run.""")
+tf.app.flags.DEFINE_integer('max_steps', 5000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -104,15 +109,21 @@ def train():
           print (format_str % (datetime.now(), self._step, loss_value,
                                examples_per_sec, sec_per_batch))
 
+    for var in tf.trainable_variables():
+        tf.summary.histogram(var.op.name, var)
+
+    config = tf.ConfigProto(log_device_placement=FLAGS.log_device_placement)
+    config.gpu_options.allow_growth = True
     with tf.train.MonitoredTrainingSession(
         checkpoint_dir=FLAGS.train_dir,
         hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
                tf.train.NanTensorHook(loss),
                _LoggerHook()],
-        config=tf.ConfigProto(
-            log_device_placement=FLAGS.log_device_placement)) as mon_sess:
+        config=config) as mon_sess:
       while not mon_sess.should_stop():
         mon_sess.run(train_op)
+
+
 
 
 def main(argv=None):  # pylint: disable=unused-argument

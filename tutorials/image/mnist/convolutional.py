@@ -44,7 +44,7 @@ NUM_LABELS = 10
 VALIDATION_SIZE = 5000  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 64
-NUM_EPOCHS = 20
+NUM_EPOCHS = 10
 EVAL_BATCH_SIZE = 64
 EVAL_FREQUENCY = 100  # Number of steps between evaluations.
 
@@ -75,6 +75,14 @@ def maybe_download(filename):
     print('Successfully downloaded', filename, size, 'bytes.')
   return filepath
 
+def create_variable(name, shape):
+    '''Create a convolution filter variable with the specified name and shape,
+    and initialize it using Xavier initialition.'''
+    initializer = tf.contrib.layers.xavier_initializer_conv2d(uniform=False,
+                                                                seed=None,
+                                                                dtype=tf.float32)
+    variable = tf.Variable(initializer(shape=shape), name=name)
+    return variable
 
 def extract_data(filename, num_images):
   """Extract the images into a 4D tensor [image index, y, x, channels].
@@ -164,27 +172,55 @@ def main(_):
   # The variables below hold all the trainable weights. They are passed an
   # initial value which will be assigned when we call:
   # {tf.global_variables_initializer().run()}
-  conv1_weights = tf.Variable(
-      tf.truncated_normal([5, 5, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
-                          stddev=0.1,
-                          seed=SEED, dtype=data_type()), name='conv1_weights')
+  # conv1_weights = tf.Variable(
+  #     tf.truncated_normal([5, 5, NUM_CHANNELS, 32],  # 5x5 filter, depth 32.
+  #                         stddev=0.1,
+  #                         seed=SEED, dtype=data_type()), name='conv1_weights')
+  #
+  # conv2_weights = tf.Variable(tf.truncated_normal(
+  #     [5, 5, 32, 64], stddev=0.1,
+  #     seed=SEED, dtype=data_type()),name='conv2_weights')
+  #
+  # fc1_weights = tf.Variable(  # fully connected, depth 512.
+  #     tf.truncated_normal([IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512],
+  #                         stddev=0.1,
+  #                         seed=SEED,
+  #                         dtype=data_type()),name='fc1_weights')
+  #
+  # fc2_weights = tf.Variable(tf.truncated_normal([512, NUM_LABELS],
+  #                                               stddev=0.1,
+  #                                               seed=SEED,
+  #                                               dtype=data_type()), name='fc2_weights')
+
+  conv1_weights = create_variable('conv1_weights', [5, 5, NUM_CHANNELS, 32])
+  conv2_weights = create_variable('conv2_weights', [5, 5, 32, 64])
+  fc1_weights = create_variable('fc1_weights', [IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512])
+  fc2_weights = create_variable('fc2_weights', [512, NUM_LABELS])
+
   conv1_biases = tf.Variable(tf.zeros([32], dtype=data_type()), name='conv1_biases')
-  conv2_weights = tf.Variable(tf.truncated_normal(
-      [5, 5, 32, 64], stddev=0.1,
-      seed=SEED, dtype=data_type()),name='conv2_weights')
-  conv2_biases = tf.Variable(tf.constant(0.1, shape=[64], dtype=data_type()),name='conv2_biases')
-  fc1_weights = tf.Variable(  # fully connected, depth 512.
-      tf.truncated_normal([IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512],
-                          stddev=0.1,
-                          seed=SEED,
-                          dtype=data_type()),name='fc1_weights')
+  conv2_biases = tf.Variable(tf.constant(0.1, shape=[64], dtype=data_type()), name='conv2_biases')
   fc1_biases = tf.Variable(tf.constant(0.1, shape=[512], dtype=data_type()), name='fc1_biases')
-  fc2_weights = tf.Variable(tf.truncated_normal([512, NUM_LABELS],
-                                                stddev=0.1,
-                                                seed=SEED,
-                                                dtype=data_type()), name='fc2_weights')
   fc2_biases = tf.Variable(tf.constant(
-      0.1, shape=[NUM_LABELS], dtype=data_type()),name='fc2_biases')
+      0.1, shape=[NUM_LABELS], dtype=data_type()), name='fc2_biases')
+
+  re_conv1_weights = tf.reshape(conv1_weights, [-1])
+  conv1_mean, conv1_variance = tf.nn.moments(re_conv1_weights, [0])
+  re_conv2_weights = tf.reshape(conv2_weights, [-1])
+  conv2_mean, conv2_variance = tf.nn.moments(re_conv2_weights, [0])
+  re_fc1_weights = tf.reshape(fc1_weights, [-1])
+  fc1_mean, fc1_variance = tf.nn.moments(re_fc1_weights, [0])
+  re_fc2_weights = tf.reshape(fc2_weights, [-1])
+  fc2_mean, fc2_variance = tf.nn.moments(re_fc2_weights, [0])
+
+  conv1_variance_std = tf.sqrt(conv1_variance)
+  conv2_variance_std = tf.sqrt(conv2_variance)
+  fc1_variance_std = tf.sqrt(fc1_variance)
+  fc2_variance_std = tf.sqrt(fc2_variance)
+
+  print_op0 = tf.Print(conv1_variance_std, [conv1_variance_std], 'conv1_variance_std')
+  print_op1 = tf.Print(conv2_variance_std, [conv2_variance_std], 'conv2_variance_std')
+  print_op2 = tf.Print(fc1_variance_std, [fc1_variance_std], 'fc1_variance_std')
+  print_op3 = tf.Print(fc2_variance_std, [fc2_variance_std], 'fc2_variance_std')
 
   # We will replicate the model structure for the training subgraph, as well
   # as the evaluation subgraphs, while sharing the trainable parameters.
@@ -250,33 +286,61 @@ def main(_):
   #                 tf.nn.l1_loss(fc2_weights) + tf.nn.l1_loss(fc2_biases))
 
   #quantification values: conv1: 0, 0.36, -0.36; conv2: 0, 0.07, -0.07; ip1: 0, 0.02, -0.02; ip2: 0, 0.18, -0.18
-  # quan_pair_conv1 = tf.constant([-0.18, 0.18])
-  # quan_pair_conv2 = tf.constant([-0.035, 0.035])
-  # quan_pair_fc1 = tf.constant([-0.01, 0.01])
-  # quan_pair_fc2 = tf.constant([-0.09, 0.09])
+  # f1_conv1 = tf.sign(conv1_weights + 0.36)*(conv1_weights + 0.36)
+  # f2_conv1 = tf.sign(conv1_weights ) * conv1_weights
+  # f3_conv1 = tf.sign(conv1_weights - 0.36) * (conv1_weights - 0.36)
+  #
+  # f1_conv2 = tf.sign(conv2_weights + 0.07) * (conv2_weights + 0.07)
+  # f2_conv2 = tf.sign(conv2_weights) * conv2_weights
+  # f3_conv2 = tf.sign(conv2_weights - 0.07) * (conv2_weights - 0.07)
+  #
+  # f1_fc1 = tf.sign(fc1_weights + 0.02) * (fc1_weights + 0.02)
+  # f2_fc1 = tf.sign(fc1_weights) * fc1_weights
+  # f3_fc1 = tf.sign(fc1_weights - 0.02) * (fc1_weights - 0.02)
+  #
+  # f1_fc2 = tf.sign(fc2_weights + 0.18) * (fc2_weights + 0.18)
+  # f2_fc2 = tf.sign(fc2_weights) * fc2_weights
+  # f3_fc2 = tf.sign(fc2_weights - 0.18) * (fc2_weights - 0.18)
 
-  f1_conv1 = tf.sign(conv1_weights + 0.36)*(conv1_weights + 0.36)
+  n = tf.constant(1.0)
+  conv1_variance = tf.constant(0.0205)
+  conv2_variance = tf.constant(0.0008)
+  fc1_variance = tf.constant(0.00028)
+  fc2_variance = tf.constant(0.00585)
+  
+  print_opn = tf.Print(n, [n], 'n')
+  print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn)
+
+  conv1_quan = tf.multiply(n, conv1_variance)
+  conv2_quan = tf.multiply(n, conv2_variance)
+  fc1_quan = tf.multiply(n, fc1_variance)
+  fc2_quan = tf.multiply(n, fc2_variance)
+
+  f1_conv1 = tf.sign(conv1_weights + conv1_quan)*(conv1_weights + conv1_quan)
   f2_conv1 = tf.sign(conv1_weights ) * conv1_weights
-  f3_conv1 = tf.sign(conv1_weights - 0.36) * (conv1_weights - 0.36)
+  f3_conv1 = tf.sign(conv1_weights - conv1_quan) * (conv1_weights - conv1_quan)
 
-  f1_conv2 = tf.sign(conv2_weights + 0.07) * (conv2_weights + 0.07)
+  f1_conv2 = tf.sign(conv2_weights + conv2_quan) * (conv2_weights + conv2_quan)
   f2_conv2 = tf.sign(conv2_weights) * conv2_weights
-  f3_conv2 = tf.sign(conv2_weights - 0.07) * (conv2_weights - 0.07)
+  f3_conv2 = tf.sign(conv2_weights - conv2_quan) * (conv2_weights - conv2_quan)
 
-  f1_fc1 = tf.sign(fc1_weights + 0.02) * (fc1_weights + 0.02)
+  f1_fc1 = tf.sign(fc1_weights + fc1_quan) * (fc1_weights + fc1_quan)
   f2_fc1 = tf.sign(fc1_weights) * fc1_weights
-  f3_fc1 = tf.sign(fc1_weights - 0.02) * (fc1_weights - 0.02)
+  f3_fc1 = tf.sign(fc1_weights - fc1_quan) * (fc1_weights - fc1_quan)
 
-  f1_fc2 = tf.sign(fc2_weights + 0.18) * (fc2_weights + 0.18)
+  f1_fc2 = tf.sign(fc2_weights + fc2_quan) * (fc2_weights + fc2_quan)
   f2_fc2 = tf.sign(fc2_weights) * fc2_weights
-  f3_fc2 = tf.sign(fc2_weights - 0.18) * (fc2_weights - 0.18)
+  f3_fc2 = tf.sign(fc2_weights - fc2_quan) * (fc2_weights - fc2_quan)
 
+  # conv1_regularizers = tf.where(tf.less(conv1_weights, -0.18), f1_conv1, tf.where(tf.less(conv1_weights, 0.18), f2_conv1, f3_conv1))
+  # conv2_regularizers = tf.where(tf.less(conv2_weights, -0.035), f1_conv2, tf.where(tf.less(conv2_weights, 0.035), f2_conv2, f3_conv2))
+  # fc1_regularizers = tf.where(tf.less(fc1_weights, -0.01), f1_fc1, tf.where(tf.less(fc1_weights, 0.01), f2_fc1, f3_fc1))
+  # fc2_regularizers = tf.where(tf.less(fc2_weights, -0.09), f1_fc2, tf.where(tf.less(fc2_weights, 0.09), f2_fc2, f3_fc2))
 
-
-  conv1_regularizers = tf.where(tf.less(conv1_weights, -0.18), f1_conv1, tf.where(tf.less(conv1_weights, 0.18), f2_conv1, f3_conv1))
-  conv2_regularizers = tf.where(tf.less(conv2_weights, -0.035), f1_conv2, tf.where(tf.less(conv2_weights, 0.035), f2_conv2, f3_conv2))
-  fc1_regularizers = tf.where(tf.less(fc1_weights, -0.01), f1_fc1, tf.where(tf.less(fc1_weights, 0.01), f2_fc1, f3_fc1))
-  fc2_regularizers = tf.where(tf.less(fc2_weights, -0.09), f1_fc2, tf.where(tf.less(fc2_weights, 0.09), f2_fc2, f3_fc2))
+  conv1_regularizers = tf.where(tf.less(conv1_weights, -tf.divide(conv1_quan, 2.0)), f1_conv1, tf.where(tf.less(conv1_weights, tf.divide(conv1_quan, 2.0)), f2_conv1, f3_conv1))
+  conv2_regularizers = tf.where(tf.less(conv2_weights, -tf.divide(conv2_quan, 2.0)), f1_conv2, tf.where(tf.less(conv2_weights, tf.divide(conv2_quan, 2.0)), f2_conv2, f3_conv2))
+  fc1_regularizers = tf.where(tf.less(fc1_weights, -tf.divide(fc1_quan, 2.0)), f1_fc1, tf.where(tf.less(fc1_weights, tf.divide(fc1_quan, 2.0)), f2_fc1, f3_fc1))
+  fc2_regularizers = tf.where(tf.less(fc2_weights, -tf.divide(fc2_quan, 2.0)), f1_fc2, tf.where(tf.less(fc2_weights, tf.divide(fc2_quan, 2.0)), f2_fc2, f3_fc2))
 
   quantify_regularizers=(tf.reduce_sum(conv1_regularizers) +
                         tf.reduce_sum(conv2_regularizers) +
@@ -295,12 +359,9 @@ def main(_):
   # deformable_regularizers = 0.5*regularizers + 0.5* quantify_regularizers
 
   # Add the regularization term to the loss.
-  # loss += 5e-4 * regularizers
+  loss += 5e-4 * regularizers
   # loss += 5e-4 * quantify_regularizers
-  loss += 5e-3 * deformable_regularizers
-  # loss += 5e-4 * (regularizers+quantify_regularizers)
-  # loss += 5e-4 * (regularizers + deformable_regularizers)
-
+  # loss += 5e-3 * deformable_regularizersxa
 
   for var in tf.trainable_variables():
       tf.summary.histogram(var.op.name, var)
@@ -359,7 +420,9 @@ def main(_):
 
   # Create a local session to run the training.
   start_time = time.time()
-  with tf.Session() as sess:
+  config = tf.ConfigProto()
+  config.gpu_options.allow_growth = True
+  with tf.Session(config=config) as sess:
     # Run all the initializers to prepare the trainable parameters.
     tf.global_variables_initializer().run()
     print('Initialized!')
@@ -397,6 +460,7 @@ def main(_):
       if step % 100 == 0:
           summary_str = sess.run(summary_op)
           summary_writer.add_summary(summary_str, step)
+    sess.run(print_op)
 
     # Finally print the result!
     test_error = error_rate(eval_in_batches(test_data, sess), test_labels)
@@ -406,7 +470,6 @@ def main(_):
       print('test_error', test_error)
       assert test_error == 0.0, 'expected 0.0 test_error, got %.2f' % (
           test_error,)
-
 
 
 if __name__ == '__main__':
