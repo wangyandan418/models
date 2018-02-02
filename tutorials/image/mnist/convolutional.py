@@ -44,7 +44,7 @@ NUM_LABELS = 10
 VALIDATION_SIZE = 5000  # Size of the validation set.
 SEED = 66478  # Set to None for random seed.
 BATCH_SIZE = 64
-NUM_EPOCHS = 10
+NUM_EPOCHS = 20
 EVAL_BATCH_SIZE = 64
 EVAL_FREQUENCY = 100  # Number of steps between evaluations.
 
@@ -197,6 +197,33 @@ def main(_):
   fc1_weights = create_variable('fc1_weights', [IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512])
   fc2_weights = create_variable('fc2_weights', [512, NUM_LABELS])
 
+  ini_conv1_weights = tf.Variable(create_variable('ini_conv1_weights', [5, 5, NUM_CHANNELS, 32]), trainable=False, name='ini_conv1_weights')
+  re_ini_conv1_weights = tf.reshape(ini_conv1_weights, [-1])
+  ini_conv1_mean, ini_conv1_variance = tf.nn.moments(re_ini_conv1_weights, [0])
+  ini_conv1_std = tf.sqrt(ini_conv1_variance)
+  print_ini_op0 = tf.Print(ini_conv1_std, [ini_conv1_std], 'ini_conv1_std')
+
+  ini_conv2_weights = tf.Variable(create_variable('ini_conv2_weights', [5, 5, 32, 64]), trainable=False, name='ini_conv2_weights')
+  re_ini_conv2_weights = tf.reshape(ini_conv2_weights, [-1])
+  ini_conv2_mean, ini_conv2_variance = tf.nn.moments(re_ini_conv2_weights, [0])
+  ini_conv2_std = tf.sqrt(ini_conv2_variance)
+  print_ini_op1 = tf.Print(ini_conv2_std, [ini_conv2_std], 'ini_conv2_std')
+
+
+  ini_fc1_weights = tf.Variable(create_variable('ini_fc1_weights', [IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512]),trainable=False, name='ini_fc1_weights')
+  re_ini_fc1_weights = tf.reshape(ini_fc1_weights, [-1])
+  ini_fc1_mean, ini_fc1_variance = tf.nn.moments(re_ini_fc1_weights, [0])
+  ini_fc1_std = tf.sqrt(ini_fc1_variance)
+  print_ini_op2 = tf.Print(ini_fc1_std, [ini_fc1_std], 'ini_fc1_std')
+
+  ini_fc2_weights = tf.Variable(create_variable('ini_fc2_weights', [512, NUM_LABELS]),trainable=False, name='ini_fc2_weights')
+  re_ini_fc2_weights = tf.reshape(ini_fc2_weights, [-1])
+  ini_fc2_mean, ini_fc2_variance = tf.nn.moments(re_ini_fc2_weights, [0])
+  ini_fc2_std = tf.sqrt(ini_fc2_variance)
+  print_ini_op3 = tf.Print(ini_fc2_std, [ini_fc2_std], 'ini_fc2_std')
+
+
+
   conv1_biases = tf.Variable(tf.zeros([32], dtype=data_type()), name='conv1_biases')
   conv2_biases = tf.Variable(tf.constant(0.1, shape=[64], dtype=data_type()), name='conv2_biases')
   fc1_biases = tf.Variable(tf.constant(0.1, shape=[512], dtype=data_type()), name='fc1_biases')
@@ -212,15 +239,20 @@ def main(_):
   re_fc2_weights = tf.reshape(fc2_weights, [-1])
   fc2_mean, fc2_variance = tf.nn.moments(re_fc2_weights, [0])
 
-  conv1_variance_std = tf.sqrt(conv1_variance)
-  conv2_variance_std = tf.sqrt(conv2_variance)
-  fc1_variance_std = tf.sqrt(fc1_variance)
-  fc2_variance_std = tf.sqrt(fc2_variance)
+  conv1_std = tf.sqrt(conv1_variance)
+  conv2_std = tf.sqrt(conv2_variance)
+  fc1_std = tf.sqrt(fc1_variance)
+  fc2_std = tf.sqrt(fc2_variance)
 
-  print_op0 = tf.Print(conv1_variance_std, [conv1_variance_std], 'conv1_variance_std')
-  print_op1 = tf.Print(conv2_variance_std, [conv2_variance_std], 'conv2_variance_std')
-  print_op2 = tf.Print(fc1_variance_std, [fc1_variance_std], 'fc1_variance_std')
-  print_op3 = tf.Print(fc2_variance_std, [fc2_variance_std], 'fc2_variance_std')
+  print_op0 = tf.Print(conv1_std, [conv1_std], 'conv1_std')
+  print_op1 = tf.Print(conv2_std, [conv2_std], 'conv2_std')
+  print_op2 = tf.Print(fc1_std, [fc1_std], 'fc1_std')
+  print_op3 = tf.Print(fc2_std, [fc2_std], 'fc2_std')
+  print_ini_op0 = tf.Print(ini_conv1_std, [ini_conv1_std], 'ini_conv1_std')
+  print_ini_op1 = tf.Print(ini_conv2_std, [ini_conv2_std], 'ini_conv2_std')
+  print_ini_op2 = tf.Print(ini_fc1_std, [ini_fc1_std], 'ini_fc1_std')
+  print_ini_op3 = tf.Print(ini_fc2_std, [ini_fc2_std], 'ini_fc2_std')
+
 
   # We will replicate the model structure for the training subgraph, as well
   # as the evaluation subgraphs, while sharing the trainable parameters.
@@ -302,19 +334,19 @@ def main(_):
   # f2_fc2 = tf.sign(fc2_weights) * fc2_weights
   # f3_fc2 = tf.sign(fc2_weights - 0.18) * (fc2_weights - 0.18)
 
-  n = tf.constant(1.0)
-  conv1_variance = tf.constant(0.0205)
-  conv2_variance = tf.constant(0.0008)
-  fc1_variance = tf.constant(0.00028)
-  fc2_variance = tf.constant(0.00585)
+  n = tf.constant(2.5)
+  conv1_std_co = tf.constant(0.14301154)
+  conv2_std_co = tf.constant(0.028594673)
+  fc1_std_co = tf.constant(0.016822236)
+  fc2_std_co = tf.constant(0.076400243)
   
   print_opn = tf.Print(n, [n], 'n')
-  print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn)
+  print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn, print_ini_op0, print_ini_op1, print_ini_op2, print_ini_op3)
 
-  conv1_quan = tf.multiply(n, conv1_variance)
-  conv2_quan = tf.multiply(n, conv2_variance)
-  fc1_quan = tf.multiply(n, fc1_variance)
-  fc2_quan = tf.multiply(n, fc2_variance)
+  conv1_quan = tf.multiply(n, conv1_std_co)
+  conv2_quan = tf.multiply(n, conv2_std_co)
+  fc1_quan = tf.multiply(n, fc1_std_co)
+  fc2_quan = tf.multiply(n, fc2_std_co)
 
   f1_conv1 = tf.sign(conv1_weights + conv1_quan)*(conv1_weights + conv1_quan)
   f2_conv1 = tf.sign(conv1_weights ) * conv1_weights
@@ -359,9 +391,9 @@ def main(_):
   # deformable_regularizers = 0.5*regularizers + 0.5* quantify_regularizers
 
   # Add the regularization term to the loss.
-  loss += 5e-4 * regularizers
+  #loss += 5e-4 * regularizers
   # loss += 5e-4 * quantify_regularizers
-  # loss += 5e-3 * deformable_regularizersxa
+  loss += 5e-4 * deformable_regularizers
 
   for var in tf.trainable_variables():
       tf.summary.histogram(var.op.name, var)
