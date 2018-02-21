@@ -28,6 +28,7 @@ import gzip
 import os
 import sys
 import time
+import math
 
 import numpy
 from six.moves import urllib
@@ -197,30 +198,30 @@ def main(_):
   fc1_weights = create_variable('fc1_weights', [IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512])
   fc2_weights = create_variable('fc2_weights', [512, NUM_LABELS])
 
-  ini_conv1_weights = tf.Variable(create_variable('ini_conv1_weights', [5, 5, NUM_CHANNELS, 32]), trainable=False, name='ini_conv1_weights')
-  re_ini_conv1_weights = tf.reshape(ini_conv1_weights, [-1])
-  ini_conv1_mean, ini_conv1_variance = tf.nn.moments(re_ini_conv1_weights, [0])
-  ini_conv1_std = tf.sqrt(ini_conv1_variance)
-  print_ini_op0 = tf.Print(ini_conv1_std, [ini_conv1_std], 'ini_conv1_std')
+  # ini_conv1_weights = tf.Variable(create_variable('ini_conv1_weights', [5, 5, NUM_CHANNELS, 32]), trainable=False, name='ini_conv1_weights')
+  # re_ini_conv1_weights = tf.reshape(ini_conv1_weights, [-1])
+  # ini_conv1_mean, ini_conv1_variance = tf.nn.moments(re_ini_conv1_weights, [0])
+  # ini_conv1_std = tf.sqrt(ini_conv1_variance)
+  # print_ini_op0 = tf.Print(ini_conv1_std, [ini_conv1_std], 'ini_conv1_std')
 
-  ini_conv2_weights = tf.Variable(create_variable('ini_conv2_weights', [5, 5, 32, 64]), trainable=False, name='ini_conv2_weights')
-  re_ini_conv2_weights = tf.reshape(ini_conv2_weights, [-1])
-  ini_conv2_mean, ini_conv2_variance = tf.nn.moments(re_ini_conv2_weights, [0])
-  ini_conv2_std = tf.sqrt(ini_conv2_variance)
-  print_ini_op1 = tf.Print(ini_conv2_std, [ini_conv2_std], 'ini_conv2_std')
-
-
-  ini_fc1_weights = tf.Variable(create_variable('ini_fc1_weights', [IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512]),trainable=False, name='ini_fc1_weights')
-  re_ini_fc1_weights = tf.reshape(ini_fc1_weights, [-1])
-  ini_fc1_mean, ini_fc1_variance = tf.nn.moments(re_ini_fc1_weights, [0])
-  ini_fc1_std = tf.sqrt(ini_fc1_variance)
-  print_ini_op2 = tf.Print(ini_fc1_std, [ini_fc1_std], 'ini_fc1_std')
-
-  ini_fc2_weights = tf.Variable(create_variable('ini_fc2_weights', [512, NUM_LABELS]),trainable=False, name='ini_fc2_weights')
-  re_ini_fc2_weights = tf.reshape(ini_fc2_weights, [-1])
-  ini_fc2_mean, ini_fc2_variance = tf.nn.moments(re_ini_fc2_weights, [0])
-  ini_fc2_std = tf.sqrt(ini_fc2_variance)
-  print_ini_op3 = tf.Print(ini_fc2_std, [ini_fc2_std], 'ini_fc2_std')
+  # ini_conv2_weights = tf.Variable(create_variable('ini_conv2_weights', [5, 5, 32, 64]), trainable=False, name='ini_conv2_weights')
+  # re_ini_conv2_weights = tf.reshape(ini_conv2_weights, [-1])
+  # ini_conv2_mean, ini_conv2_variance = tf.nn.moments(re_ini_conv2_weights, [0])
+  # ini_conv2_std = tf.sqrt(ini_conv2_variance)
+  # print_ini_op1 = tf.Print(ini_conv2_std, [ini_conv2_std], 'ini_conv2_std')
+  #
+  #
+  # ini_fc1_weights = tf.Variable(create_variable('ini_fc1_weights', [IMAGE_SIZE // 4 * IMAGE_SIZE // 4 * 64, 512]),trainable=False, name='ini_fc1_weights')
+  # re_ini_fc1_weights = tf.reshape(ini_fc1_weights, [-1])
+  # ini_fc1_mean, ini_fc1_variance = tf.nn.moments(re_ini_fc1_weights, [0])
+  # ini_fc1_std = tf.sqrt(ini_fc1_variance)
+  # print_ini_op2 = tf.Print(ini_fc1_std, [ini_fc1_std], 'ini_fc1_std')
+  #
+  # ini_fc2_weights = tf.Variable(create_variable('ini_fc2_weights', [512, NUM_LABELS]),trainable=False, name='ini_fc2_weights')
+  # re_ini_fc2_weights = tf.reshape(ini_fc2_weights, [-1])
+  # ini_fc2_mean, ini_fc2_variance = tf.nn.moments(re_ini_fc2_weights, [0])
+  # ini_fc2_std = tf.sqrt(ini_fc2_variance)
+  # print_ini_op3 = tf.Print(ini_fc2_std, [ini_fc2_std], 'ini_fc2_std')
 
 
 
@@ -248,10 +249,10 @@ def main(_):
   print_op1 = tf.Print(conv2_std, [conv2_std], 'conv2_std')
   print_op2 = tf.Print(fc1_std, [fc1_std], 'fc1_std')
   print_op3 = tf.Print(fc2_std, [fc2_std], 'fc2_std')
-  print_ini_op0 = tf.Print(ini_conv1_std, [ini_conv1_std], 'ini_conv1_std')
-  print_ini_op1 = tf.Print(ini_conv2_std, [ini_conv2_std], 'ini_conv2_std')
-  print_ini_op2 = tf.Print(ini_fc1_std, [ini_fc1_std], 'ini_fc1_std')
-  print_ini_op3 = tf.Print(ini_fc2_std, [ini_fc2_std], 'ini_fc2_std')
+  # print_ini_op0 = tf.Print(ini_conv1_std, [ini_conv1_std], 'ini_conv1_std')
+  # print_ini_op1 = tf.Print(ini_conv2_std, [ini_conv2_std], 'ini_conv2_std')
+  # print_ini_op2 = tf.Print(ini_fc1_std, [ini_fc1_std], 'ini_fc1_std')
+  # print_ini_op3 = tf.Print(ini_fc2_std, [ini_fc2_std], 'ini_fc2_std')
 
 
   # We will replicate the model structure for the training subgraph, as well
@@ -341,7 +342,8 @@ def main(_):
   fc2_std_co = tf.constant(0.076400243)
   
   print_opn = tf.Print(n, [n], 'n')
-  print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn, print_ini_op0, print_ini_op1, print_ini_op2, print_ini_op3)
+  # print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn, print_ini_op0, print_ini_op1, print_ini_op2, print_ini_op3)
+  # print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn)
 
   conv1_quan = tf.multiply(n, conv1_std_co)
   conv2_quan = tf.multiply(n, conv2_std_co)
@@ -382,18 +384,45 @@ def main(_):
   # a = tf.constant(1)
   a = tf.Variable(1.,trainable=False, name='a')
   tf.summary.scalar(a.op.name, a)
+  b = tf.Variable(0.5, trainable=False, name='b')
+  tf.summary.scalar(b.op.name, b)
   #a = tf.assign(a, tf.subtract(a, 0.00005))
   batch = tf.Variable(0, dtype=data_type())
-  a = tf.assign(a, tf.add(tf.multiply(tf.divide(-1.0, (int(num_epochs * train_size) // BATCH_SIZE)),batch), 1))
+
+  # # a changes with a straight line
+  # a = tf.assign(a, tf.add(tf.multiply(tf.divide(-1.0, (int(num_epochs * train_size) // BATCH_SIZE)),batch), 1))
+
+  # # a changes with ellipse
   # a = tf.assign(a,tf.sqrt(1.0-tf.divide(tf.square(batch), tf.cast(tf.square(int(num_epochs * train_size) // BATCH_SIZE),tf.float32))))
+
+  # a changes with a ellipse and sets to 0 at the final 5000 steps
+  # a = tf.cond(tf.less(batch, int(num_epochs * train_size) // BATCH_SIZE - 5000), lambda:tf.assign(a,tf.sqrt(1.0-tf.divide(tf.square(batch), tf.cast(tf.square(int(num_epochs * train_size) // BATCH_SIZE),tf.float32)))),lambda:tf.assign(a, 0.))
+
+  # # a changes with a square root of cosine function
+  # PI = tf.constant(math.pi)
+  # a = tf.assign(a, tf.sqrt(0.5*(1.0+tf.cos(tf.divide(PI,int(num_epochs * train_size) // BATCH_SIZE)*batch))+1e-8))
+
+  # Total_iter = int(num_epochs * train_size) // BATCH_SIZE
+  # a = tf.assign(a, tf.where(tf.less(batch, int(Total_iter // 3)), 1.0, tf.where(tf.less(batch, int(1.5*Total_iter // 3)), (-3*batch / Total_iter)+2, 0)))
   # a = tf.add(a, 0.0001)
-  deformable_regularizers=a*regularizers+(1-a)*quantify_regularizers
+  # a =tf.sqrt(a+1e-8)
+
+  # # a changes with a cosine function
+  PI = tf.constant(math.pi)
+  a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, int(num_epochs * train_size) // BATCH_SIZE) * batch)) + 1e-8)
+
+  b = tf.assign(b, tf.random_uniform([], 0., 1.))
+  # deformable_regularizers = tf.Variable(1, trainable=False, name='deformable_regularizers')
+  # deformable_regularizers = tf.assign(deformable_regularizers, tf.where(tf.less(a, b), regularizers, quantify_regularizers))
+  deformable_regularizers = tf.where(tf.less(b, a), regularizers, quantify_regularizers)
+  # deformable_regularizers=a*regularizers+(1-a)*quantify_regularizers
   # deformable_regularizers = 0.5*regularizers + 0.5* quantify_regularizers
 
   # Add the regularization term to the loss.
-  #loss += 5e-4 * regularizers
+  # loss += 5e-4 * regularizers
   # loss += 5e-4 * quantify_regularizers
   loss += 5e-4 * deformable_regularizers
+  # loss += 2e-3 * deformable_regularizers
 
   for var in tf.trainable_variables():
       tf.summary.histogram(var.op.name, var)
@@ -487,17 +516,43 @@ def main(_):
             eval_in_batches(validation_data, sess), validation_labels))
         Validation_error = error_rate(
             eval_in_batches(validation_data, sess), validation_labels)
-        write_scalar_summary(summary_writer, 'error', Validation_error, step)
+        # write_scalar_summary(summary_writer, 'Minbatch_error', error_rate(predictions, batch_labels), step)
+        write_scalar_summary(summary_writer, 'Validation_error', Validation_error, step)
         sys.stdout.flush()
       if step % 100 == 0:
           summary_str = sess.run(summary_op)
           summary_writer.add_summary(summary_str, step)
-    sess.run(print_op)
+    # sess.run(print_op)
 
     # Finally print the result!
     test_error = error_rate(eval_in_batches(test_data, sess), test_labels)
     # tf.summary.scalar('test_error', test_error)
-    print('Test error: %.1f%%' % test_error)
+    print('Test error before: %.1f%%' % test_error)
+
+
+    conv1_ones_shape=tf.ones(shape=tf.shape(conv1_weights))
+    conv2_ones_shape = tf.ones(shape=tf.shape(conv2_weights))
+    fc1_ones_shape = tf.ones(shape=tf.shape(fc1_weights))
+    fc2_ones_shape = tf.ones(shape=tf.shape(fc2_weights))
+
+    sess.run(tf.assign(conv1_weights, tf.where(tf.less(conv1_weights, -tf.divide(conv1_quan, 2.0)), -conv1_quan * conv1_ones_shape,
+                       tf.where(tf.less(conv1_weights, tf.divide(conv1_quan, 2.0)), 0. * conv1_ones_shape, conv1_quan * conv1_ones_shape))))
+    sess.run(tf.assign(conv2_weights, tf.where(tf.less(conv2_weights, -tf.divide(conv2_quan, 2.0)), -conv2_quan * conv2_ones_shape, tf.where(tf.less(conv2_weights, tf.divide(conv2_quan, 2.0)), 0. * conv2_ones_shape,
+                                conv2_quan * conv2_ones_shape))))
+    sess.run(tf.assign(fc1_weights, tf.where(tf.less(fc1_weights, -tf.divide(fc1_quan, 2.0)), -fc1_quan * fc1_ones_shape,
+                                    tf.where(tf.less(fc1_weights, tf.divide(fc1_quan, 2.0)), 0. * fc1_ones_shape, fc1_quan * fc1_ones_shape))))
+    sess.run(tf.assign(fc2_weights, tf.where(tf.less(fc2_weights, -tf.divide(fc2_quan, 2.0)), -fc2_quan * fc2_ones_shape,
+                                    tf.where(tf.less(fc2_weights, tf.divide(fc2_quan, 2.0)), 0. * fc2_ones_shape, fc2_quan * fc2_ones_shape))))
+
+    summary_str = sess.run(summary_op)
+    summary_writer.add_summary(summary_str, int(num_epochs * train_size) // BATCH_SIZE + 1)
+    # summary_writer.add_summary(summary_str, 17000)
+
+
+    # Finally print the result!
+    test_error = error_rate(eval_in_batches(test_data, sess), test_labels)
+    # tf.summary.scalar('test_error', test_error)
+    print('Test error after: %.1f%%' % test_error)
     if FLAGS.self_test:
       print('test_error', test_error)
       assert test_error == 0.0, 'expected 0.0 test_error, got %.2f' % (
