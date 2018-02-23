@@ -39,6 +39,7 @@ from __future__ import print_function
 from datetime import datetime
 import time
 import re
+import math
 
 import tensorflow as tf
 
@@ -51,7 +52,7 @@ tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
                            """and checkpoint.""")
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
 #                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 10,
+tf.app.flags.DEFINE_integer('max_steps', 40000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -77,18 +78,42 @@ def train():
     # Calculate loss.
     loss = cifar10.loss(logits, labels)
 
-    n = tf.constant(2.5)
-    conv1_std_co = tf.constant(0.326984)
-    conv2_std_co = tf.constant(0.099911)
-    local3_std_co = tf.constant(0.010653)
-    local4_std_co = tf.constant(0.015261)
-    softmax_linear_std_co = tf.constant(0.222937)
+    # n = tf.constant(2.5)
+    n = tf.constant(1.0)
+    # conv1_std_co = tf.constant(0.326984)
+    # conv2_std_co = tf.constant(0.099911)
+    # local3_std_co = tf.constant(0.010653)
+    # local4_std_co = tf.constant(0.015261)
+    # softmax_linear_std_co = tf.constant(0.222937)
 
-    conv1_quan = tf.multiply(n, conv1_std_co)
-    conv2_quan = tf.multiply(n, conv2_std_co)
-    local3_quan = tf.multiply(n, local3_std_co)
-    local4_quan = tf.multiply(n, local4_std_co)
-    softmax_linear_quan = tf.multiply(n, softmax_linear_std_co)
+    # conv1_quan = tf.multiply(n, conv1_std_co)
+    # conv2_quan = tf.multiply(n, conv2_std_co)
+    # local3_quan = tf.multiply(n, local3_std_co)
+    # local4_quan = tf.multiply(n, local4_std_co)
+    # softmax_linear_quan = tf.multiply(n, softmax_linear_std_co)
+
+    conv1_quan = tf.constant(0.1)
+    conv2_quan = tf.constant(0.1)
+    local3_quan = tf.constant(0.1)
+    local4_quan = tf.constant(0.1)
+    softmax_linear_quan = tf.constant(0.1)
+
+    for var in tf.trainable_variables():
+        weights_pattern_conv1 = ".*conv1/weights.*"
+        weights_pattern_conv2 = ".*conv2/weights.*"
+        weights_pattern_local3 = ".*local3/weights.*"
+        weights_pattern_local4 = ".*local4/weights.*"
+        weights_pattern_softmax_linear = ".*local4/softmax_linear/weights.*"
+        if re.compile(weights_pattern_conv1).match(var.op.name):
+          conv1_weights = var
+        elif re.compile(weights_pattern_conv2).match(var.op.name):
+          conv2_weights = var
+        elif re.compile(weights_pattern_local3).match(var.op.name):
+          local3_weights = var
+        elif re.compile(weights_pattern_local4).match(var.op.name):
+          local4_weights = var
+        elif re.compile(weights_pattern_softmax_linear).match(var.op.name):
+          softmax_linear_weights = var
 
     f1_conv1 = tf.sign(conv1_weights + conv1_quan) * (conv1_weights + conv1_quan)
     f2_conv1 = tf.sign(conv1_weights) * conv1_weights
@@ -115,7 +140,7 @@ def train():
     conv2_regularizers = tf.where(tf.less(conv2_weights, -tf.divide(conv2_quan, 2.0)), f1_conv2,
                                   tf.where(tf.less(conv2_weights, tf.divide(conv2_quan, 2.0)), f2_conv2, f3_conv2))
     local3_regularizers = tf.where(tf.less(local3_weights, -tf.divide(local3_quan, 2.0)), f1_local3,
-                                tf.where(tf.less(fc1_weights, tf.divide(local3_quan, 2.0)), f2_local3, f3_local3))
+                                tf.where(tf.less(local3_weights, tf.divide(local3_quan, 2.0)), f2_local3, f3_local3))
     local4_regularizers = tf.where(tf.less(local4_weights, -tf.divide(local4_quan, 2.0)), f1_local4,
                                 tf.where(tf.less(local4_weights, tf.divide(local4_quan, 2.0)), f2_local4, f3_local4))
     softmax_linear_regularizers = tf.where(tf.less(softmax_linear_weights, -tf.divide(softmax_linear_quan, 2.0)), f1_softmax_linear,
@@ -127,9 +152,35 @@ def train():
                              tf.reduce_sum(local4_regularizers)+
                              tf.reduce_sum(softmax_linear_regularizers))
 
+    # # a changes with a square root of cosine function
+    # a = tf.Variable(1., trainable=False, name='a')
+    # tf.summary.scalar(a.op.name, a)
+    # PI = tf.constant(math.pi)
+    # a = tf.assign(a, tf.sqrt(0.5*(1.0+tf.cos(tf.divide(PI,FLAGS.max_steps)*tf.cast(global_step,tf.float32)))+1e-8))
+
+    # a changes with a square root of cosine function
+    a = tf.Variable(1., trainable=False, name='a')
+    tf.summary.scalar(a.op.name, a)
+    PI = tf.constant(math.pi)
+    a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
+
+    # b = tf.Variable(0.5, trainable=False, name='b')
+    # # tf.summary.scalar(b.op.name, b)
+    # b = tf.assign(b, tf.random_uniform([], 0., 1.))
+    #
+    # deformable_regularizers = tf.where(tf.less(b, a), loss, quantify_regularizers)
+
+    deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
-    train_op = cifar10.train(loss, global_step)
+    # train_op = cifar10.train(loss, global_step)
+    train_op = cifar10.train(0.0005*deformable_regularizers, global_step)
+
+    # for var in tf.trainable_variables():
+    #   pattern = ".*weights.*"
+    #   if re.compile(pattern).match(var.op.name):
+    #     tf.summary.histogram(var.op.name, var)
+
 
     class _LoggerHook(tf.train.SessionRunHook):
       """Logs loss and runtime."""
@@ -175,8 +226,15 @@ def train():
     # with tf.control_dependencies([print_op]):
     #     train_op = tf.group(train_op, tf.no_op())
 
+    #
+    # if global_step % 1 == 0:
+    #   # summary_str = sess.run(summary_op)
+    #   with tf.control_dependencies([summary_op]):
+    #     train_op = tf.group(train_op, tf.no_op())
+      # summary_writer.add_summary(summary_str, global_step)
 
     with tf.train.MonitoredTrainingSession(
+        save_summaries_steps=10,
         checkpoint_dir=FLAGS.train_dir,
         hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
                tf.train.NanTensorHook(loss),
