@@ -52,7 +52,7 @@ tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
                            """and checkpoint.""")
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
 #                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 40000,
+tf.app.flags.DEFINE_integer('max_steps', 20000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -158,19 +158,19 @@ def train():
     # PI = tf.constant(math.pi)
     # a = tf.assign(a, tf.sqrt(0.5*(1.0+tf.cos(tf.divide(PI,FLAGS.max_steps)*tf.cast(global_step,tf.float32)))+1e-8))
 
-    # a changes with a square root of cosine function
+    # a changes with a cosine function
     a = tf.Variable(1., trainable=False, name='a')
     tf.summary.scalar(a.op.name, a)
     PI = tf.constant(math.pi)
     a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
 
-    # b = tf.Variable(0.5, trainable=False, name='b')
-    # # tf.summary.scalar(b.op.name, b)
-    # b = tf.assign(b, tf.random_uniform([], 0., 1.))
-    #
-    # deformable_regularizers = tf.where(tf.less(b, a), loss, quantify_regularizers)
+    b = tf.Variable(0.5, trainable=False, name='b')
+    # tf.summary.scalar(b.op.name, b)
+    b = tf.assign(b, tf.random_uniform([], 0., 1.))
 
-    deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
+    deformable_regularizers = tf.where(tf.less(b, a), loss, quantify_regularizers)
+
+    # deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
