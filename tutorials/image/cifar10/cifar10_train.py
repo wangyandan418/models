@@ -47,12 +47,15 @@ import cifar10
 
 FLAGS = tf.app.flags.FLAGS
 
-tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
+# tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
+#                            """Directory where to write event logs """
+#                            """and checkpoint.""")
+tf.app.flags.DEFINE_string('train_dir', './tb/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
 #                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 20000,
+tf.app.flags.DEFINE_integer('max_steps', 300000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -173,8 +176,8 @@ def train():
     # deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
-    # train_op = cifar10.train(loss, global_step)
-    train_op = cifar10.train(0.0005*deformable_regularizers, global_step)
+    train_op = cifar10.train(loss, global_step)
+    # train_op = cifar10.train(0.0005*deformable_regularizers, global_step)
 
     # for var in tf.trainable_variables():
     #   pattern = ".*weights.*"
