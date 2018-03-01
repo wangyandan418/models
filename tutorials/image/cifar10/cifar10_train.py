@@ -50,7 +50,7 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './tb/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './tb3/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
@@ -167,17 +167,17 @@ def train():
     PI = tf.constant(math.pi)
     a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
 
-    # b = tf.Variable(0.5, trainable=False, name='b')
-    # # tf.summary.scalar(b.op.name, b)
-    # b = tf.assign(b, tf.random_uniform([], 0., 1.))
+    b = tf.Variable(0.5, trainable=False, name='b')
+    # tf.summary.scalar(b.op.name, b)
+    b = tf.assign(b, tf.random_uniform([], 0., 1.))
 
-    # deformable_regularizers = tf.where(tf.less(b, a), loss, quantify_regularizers)
+    deformable_regularizers = tf.where(tf.less(b, a), loss, quantify_regularizers)
 
-    deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
+    # deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
-    train_op = cifar10.train(0.00005*deformable_regularizers, global_step)
+    train_op = cifar10.train(0.000005*deformable_regularizers, global_step)
 
     # for var in tf.trainable_variables():
     #   pattern = ".*weights.*"

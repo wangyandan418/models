@@ -52,7 +52,7 @@ tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
 # tf.app.flags.DEFINE_string('data_dir', '/tmp/cifar10_data',
 #                            """Path to the CIFAR-10 data directory.""")
-tf.app.flags.DEFINE_string('data_dir', './tb/cifar10_data',
+tf.app.flags.DEFINE_string('data_dir', './tb2/cifar10_data',
                            """Path to the CIFAR-10 data directory.""")
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
@@ -246,7 +246,7 @@ def inference(images):
   with tf.variable_scope('conv1') as scope:
     kernel = _variable_with_weight_decay('weights',
                                          shape=[5, 5, 3, 64],
-                                         wd=0.0)
+                                         wd=0.004)
     conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
     pre_activation = tf.nn.bias_add(conv, biases)
@@ -276,7 +276,7 @@ def inference(images):
   with tf.variable_scope('conv2') as scope:
     kernel = _variable_with_weight_decay('weights',
                                          shape=[5, 5, 64, 64],
-                                         wd=0.0)
+                                         wd=0.004)
     conv = tf.nn.conv2d(norm1, kernel, [1, 1, 1, 1], padding='SAME')
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
     pre_activation = tf.nn.bias_add(conv, biases)
@@ -339,7 +339,7 @@ def inference(images):
   #   _activation_summary(softmax_linear)
 
     with tf.variable_scope('softmax_linear') as scope:
-        weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES], wd=0.0)
+        weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES], wd=0.004)
         biases = _variable_on_cpu('biases', [NUM_CLASSES],
                                   tf.constant_initializer(0.0))
         softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
