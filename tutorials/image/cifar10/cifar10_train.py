@@ -95,11 +95,11 @@ def train():
     # local4_quan = tf.multiply(n, local4_std_co)
     # softmax_linear_quan = tf.multiply(n, softmax_linear_std_co)
 
-    conv1_quan = tf.constant(0.1)
-    conv2_quan = tf.constant(0.1)
-    local3_quan = tf.constant(0.1)
-    local4_quan = tf.constant(0.1)
-    softmax_linear_quan = tf.constant(0.1)
+    conv1_quan = tf.constant(0.18)
+    conv2_quan = tf.constant(0.33)
+    local3_quan = tf.constant(0.03)
+    local4_quan = tf.constant(0.04)
+    softmax_linear_quan = tf.constant(2.0)
 
     for var in tf.trainable_variables():
         weights_pattern_conv1 = ".*conv1/weights.*"
@@ -167,17 +167,17 @@ def train():
     PI = tf.constant(math.pi)
     a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
 
-    b = tf.Variable(0.5, trainable=False, name='b')
-    # tf.summary.scalar(b.op.name, b)
-    b = tf.assign(b, tf.random_uniform([], 0., 1.))
+    # b = tf.Variable(0.5, trainable=False, name='b')
+    # # tf.summary.scalar(b.op.name, b)
+    # b = tf.assign(b, tf.random_uniform([], 0., 1.))
 
-    deformable_regularizers = tf.where(tf.less(b, a), loss, quantify_regularizers)
+    # deformable_regularizers = tf.where(tf.less(b, a), loss, quantify_regularizers)
 
-    # deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
+    deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
-    train_op = cifar10.train(loss, global_step)
-    # train_op = cifar10.train(0.0005*deformable_regularizers, global_step)
+    # train_op = cifar10.train(loss, global_step)
+    train_op = cifar10.train(0.00005*deformable_regularizers, global_step)
 
     # for var in tf.trainable_variables():
     #   pattern = ".*weights.*"

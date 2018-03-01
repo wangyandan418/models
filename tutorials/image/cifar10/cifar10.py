@@ -99,6 +99,10 @@ def _activation_summary(x):
                                        tf.nn.zero_fraction(x))
 
 
+def _weight_summary(x):
+  tf.summary.histogram(x.op.name + '/weights', x)
+
+
 def _variable_on_cpu(name, shape, initializer):
   """Helper to create a Variable stored on CPU memory.
 
@@ -248,6 +252,7 @@ def inference(images):
     pre_activation = tf.nn.bias_add(conv, biases)
     conv1 = tf.nn.relu(pre_activation, name=scope.name)
     _activation_summary(conv1)
+    _weight_summary(kernel)
 
   # pool1
   pool1 = tf.nn.max_pool(conv1, ksize=[1, 3, 3, 1], strides=[1, 2, 2, 1],
@@ -277,6 +282,7 @@ def inference(images):
     pre_activation = tf.nn.bias_add(conv, biases)
     conv2 = tf.nn.relu(pre_activation, name=scope.name)
     _activation_summary(conv2)
+    _weight_summary(kernel)
 
   # norm2
   norm2 = tf.nn.lrn(conv2, 4, bias=1.0, alpha=0.001 / 9.0, beta=0.75,
@@ -304,6 +310,7 @@ def inference(images):
     biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
     local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
     _activation_summary(local3)
+    _weight_summary(weights)
 
   # local4
   # with tf.variable_scope('local4') as scope:
@@ -318,6 +325,7 @@ def inference(images):
     biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
     local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
     _activation_summary(local4)
+    _weight_summary(weights)
   # linear layer(WX + b),
   # We don't apply softmax here because
   # tf.nn.sparse_softmax_cross_entropy_with_logits accepts the unscaled logits
@@ -336,6 +344,7 @@ def inference(images):
                                   tf.constant_initializer(0.0))
         softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
         _activation_summary(softmax_linear)
+        _weight_summary(weights)
   return softmax_linear
 
 
