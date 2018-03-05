@@ -50,12 +50,12 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './tb3/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './tb_lr_0.0002_wd_0.001_ti_1000000_Bernoulli/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
 #                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 300000,
+tf.app.flags.DEFINE_integer('max_steps', 1000000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -79,7 +79,8 @@ def train():
     logits = cifar10.inference(images)
 
     # Calculate loss.
-    loss = cifar10.loss(logits, labels)
+    # loss = cifar10.loss(logits, labels)
+    cross_entropy, l2_loss = cifar10.loss(logits, labels)
 
     # n = tf.constant(2.5)
     n = tf.constant(1.0)
@@ -99,7 +100,8 @@ def train():
     conv2_quan = tf.constant(0.33)
     local3_quan = tf.constant(0.03)
     local4_quan = tf.constant(0.04)
-    softmax_linear_quan = tf.constant(2.0)
+    # softmax_linear_quan = tf.constant(2.0)
+    softmax_linear_quan = tf.constant(0.4)
 
     for var in tf.trainable_variables():
         weights_pattern_conv1 = ".*conv1/weights.*"
@@ -171,13 +173,14 @@ def train():
     # tf.summary.scalar(b.op.name, b)
     b = tf.assign(b, tf.random_uniform([], 0., 1.))
 
-    deformable_regularizers = tf.where(tf.less(b, a), loss, quantify_regularizers)
+    deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
 
-    # deformable_regularizers = a * loss + (1 - a) * quantify_regularizers
+    # deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
-    train_op = cifar10.train(0.000005*deformable_regularizers, global_step)
+    total_loss = cross_entropy+0.001*deformable_regularizers
+    train_op = cifar10.train(total_loss, global_step)
 
     # for var in tf.trainable_variables():
     #   pattern = ".*weights.*"
@@ -194,7 +197,7 @@ def train():
 
       def before_run(self, run_context):
         self._step += 1
-        return tf.train.SessionRunArgs(loss)  # Asks for loss value.
+        return tf.train.SessionRunArgs(total_loss)  # Asks for loss value.
 
       def after_run(self, run_context, run_values):
         if self._step % FLAGS.log_frequency == 0:
@@ -206,7 +209,7 @@ def train():
           examples_per_sec = FLAGS.log_frequency * FLAGS.batch_size / duration
           sec_per_batch = float(duration / FLAGS.log_frequency)
 
-          format_str = ('%s: step %d, loss = %.2f (%.1f examples/sec; %.3f '
+          format_str = ('%s: step %d, total_loss = %.2f (%.1f examples/sec; %.3f '
                         'sec/batch)')
           print (format_str % (datetime.now(), self._step, loss_value,
                                examples_per_sec, sec_per_batch))
@@ -240,7 +243,7 @@ def train():
         save_summaries_steps=10,
         checkpoint_dir=FLAGS.train_dir,
         hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
-               tf.train.NanTensorHook(loss),
+               tf.train.NanTensorHook(total_loss),
                _LoggerHook()],
         config=config) as mon_sess:
       while not mon_sess.should_stop():

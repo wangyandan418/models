@@ -52,7 +52,7 @@ tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
 # tf.app.flags.DEFINE_string('data_dir', '/tmp/cifar10_data',
 #                            """Path to the CIFAR-10 data directory.""")
-tf.app.flags.DEFINE_string('data_dir', './tb2/cifar10_data',
+tf.app.flags.DEFINE_string('data_dir', './tb_lr_0.0002_wd_0.001_ti_1000000_Bernoulli/cifar10_data',
                            """Path to the CIFAR-10 data directory.""")
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
@@ -168,7 +168,8 @@ def _variable_with_weight_decay(name, shape, wd):
   var = tf.Variable(initializer(shape=shape), name=name)
   if wd is not None:
     weight_decay = tf.multiply(tf.nn.l2_loss(var), wd, name='weight_loss')
-    tf.add_to_collection('losses', weight_decay)
+    # tf.add_to_collection('losses', weight_decay)
+    tf.add_to_collection('l2_loss', weight_decay)
   return var
 
 def distorted_inputs():
@@ -246,7 +247,7 @@ def inference(images):
   with tf.variable_scope('conv1') as scope:
     kernel = _variable_with_weight_decay('weights',
                                          shape=[5, 5, 3, 64],
-                                         wd=0.004)
+                                         wd=1.0)
     conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
     pre_activation = tf.nn.bias_add(conv, biases)
@@ -276,7 +277,7 @@ def inference(images):
   with tf.variable_scope('conv2') as scope:
     kernel = _variable_with_weight_decay('weights',
                                          shape=[5, 5, 64, 64],
-                                         wd=0.004)
+                                         wd=1.0)
     conv = tf.nn.conv2d(norm1, kernel, [1, 1, 1, 1], padding='SAME')
     biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
     pre_activation = tf.nn.bias_add(conv, biases)
@@ -306,7 +307,7 @@ def inference(images):
     # Move everything into depth so we can perform a single matrix multiply.
     reshape = tf.reshape(pool2, [FLAGS.batch_size, -1])
     dim = reshape.get_shape()[1].value
-    weights = _variable_with_weight_decay('weights', shape=[dim, 384], wd=0.004)
+    weights = _variable_with_weight_decay('weights', shape=[dim, 384], wd=1.0)
     biases = _variable_on_cpu('biases', [384], tf.constant_initializer(0.1))
     local3 = tf.nn.relu(tf.matmul(reshape, weights) + biases, name=scope.name)
     _activation_summary(local3)
@@ -321,7 +322,7 @@ def inference(images):
   #   _activation_summary(local4)
 
   with tf.variable_scope('local4') as scope:
-    weights = _variable_with_weight_decay('weights', shape=[384, 192], wd=0.004)
+    weights = _variable_with_weight_decay('weights', shape=[384, 192], wd=1.0)
     biases = _variable_on_cpu('biases', [192], tf.constant_initializer(0.1))
     local4 = tf.nn.relu(tf.matmul(local3, weights) + biases, name=scope.name)
     _activation_summary(local4)
@@ -339,7 +340,7 @@ def inference(images):
   #   _activation_summary(softmax_linear)
 
     with tf.variable_scope('softmax_linear') as scope:
-        weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES], wd=0.004)
+        weights = _variable_with_weight_decay('weights', [192, NUM_CLASSES], wd=1.0)
         biases = _variable_on_cpu('biases', [NUM_CLASSES],
                                   tf.constant_initializer(0.0))
         softmax_linear = tf.add(tf.matmul(local4, weights), biases, name=scope.name)
@@ -365,11 +366,12 @@ def loss(logits, labels):
   cross_entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(
       labels=labels, logits=logits, name='cross_entropy_per_example')
   cross_entropy_mean = tf.reduce_mean(cross_entropy, name='cross_entropy')
-  tf.add_to_collection('losses', cross_entropy_mean)
+  # tf.add_to_collection('losses', cross_entropy_mean)
+  tf.add_to_collection('cross_entropy', cross_entropy_mean)
 
   # The total loss is defined as the cross entropy loss plus all of the weight
   # decay terms (L2 loss).
-  return tf.add_n(tf.get_collection('losses'), name='total_loss')
+  return (tf.add_n(tf.get_collection('cross_entropy'), name='cross_entropy'), tf.add_n(tf.get_collection('l2_loss'), name='l2_loss'))
 
 
 def _add_loss_summaries(total_loss):
