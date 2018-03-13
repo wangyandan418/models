@@ -50,12 +50,17 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './tb_lr_0.0002_wd_0.001_ti_1000000_Bernoulli/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './tb_no_quantization_baseline_600000/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
+
+# tf.app.flags.DEFINE_string('fine_tuning_dir', 'tb_baseline_400000/cifar10_train',
+#                            """Directory where to restore """
+#                            """and checkpoint.""")
+
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
 #                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 1000000,
+tf.app.flags.DEFINE_integer('max_steps', 600000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -98,6 +103,7 @@ def train():
 
     conv1_quan = tf.constant(0.18)
     conv2_quan = tf.constant(0.33)
+    # conv2_quan = tf.constant(0.22)
     local3_quan = tf.constant(0.03)
     local4_quan = tf.constant(0.04)
     # softmax_linear_quan = tf.constant(2.0)
@@ -242,6 +248,7 @@ def train():
     with tf.train.MonitoredTrainingSession(
         save_summaries_steps=10,
         checkpoint_dir=FLAGS.train_dir,
+        # checkpoint_dir=FLAGS.fine_tuning_dir,
         hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
                tf.train.NanTensorHook(total_loss),
                _LoggerHook()],

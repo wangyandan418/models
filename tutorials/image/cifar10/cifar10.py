@@ -52,8 +52,12 @@ tf.app.flags.DEFINE_integer('batch_size', 128,
                             """Number of images to process in a batch.""")
 # tf.app.flags.DEFINE_string('data_dir', '/tmp/cifar10_data',
 #                            """Path to the CIFAR-10 data directory.""")
-tf.app.flags.DEFINE_string('data_dir', './tb_lr_0.0002_wd_0.001_ti_1000000_Bernoulli/cifar10_data',
+tf.app.flags.DEFINE_string('data_dir', './tb_no_quantization_baseline_600000/cifar10_data',
                            """Path to the CIFAR-10 data directory.""")
+
+tf.app.flags.DEFINE_string('checkpoint_dir', './tb_no_quantization_baseline_600000/cifar10_train',
+                           """Directory where to read model checkpoints.""")
+
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
 
@@ -78,6 +82,7 @@ ADAM_INITIAL_LEARNING_RATE = 0.0002       # Initial learning rate for Adam optim
 TOWER_NAME = 'tower'
 
 DATA_URL = 'https://www.cs.toronto.edu/~kriz/cifar-10-binary.tar.gz'
+
 
 
 def _activation_summary(x):
