@@ -44,14 +44,19 @@ import math
 import tensorflow as tf
 
 import cifar10
+import os
 
 FLAGS = tf.app.flags.FLAGS
 
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './tb_no_quantization_baseline_600000/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './tmp/cifar10_train',
                            """Directory where to write event logs """
+                           """and checkpoint.""")
+
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', './cifar10_train/',
+                           """Directory where to write restore pretrained model """
                            """and checkpoint.""")
 
 # tf.app.flags.DEFINE_string('fine_tuning_dir', 'tb_baseline_400000/cifar10_train',
@@ -60,7 +65,7 @@ tf.app.flags.DEFINE_string('train_dir', './tb_no_quantization_baseline_600000/ci
 
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
 #                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 600000,
+tf.app.flags.DEFINE_integer('max_steps', 300000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -102,7 +107,8 @@ def train():
     # softmax_linear_quan = tf.multiply(n, softmax_linear_std_co)
 
     conv1_quan = tf.constant(0.18)
-    conv2_quan = tf.constant(0.33)
+    # conv2_quan = tf.constant(0.33)
+    conv2_quan = tf.constant(0.05)
     # conv2_quan = tf.constant(0.22)
     local3_quan = tf.constant(0.03)
     local4_quan = tf.constant(0.04)
@@ -148,8 +154,8 @@ def train():
 
     conv1_regularizers = tf.where(tf.less(conv1_weights, -tf.divide(conv1_quan, 2.0)), f1_conv1,
                                   tf.where(tf.less(conv1_weights, tf.divide(conv1_quan, 2.0)), f2_conv1, f3_conv1))
-    conv2_regularizers = tf.where(tf.less(conv2_weights, -tf.divide(conv2_quan, 2.0)), f1_conv2,
-                                  tf.where(tf.less(conv2_weights, tf.divide(conv2_quan, 2.0)), f2_conv2, f3_conv2))
+    # conv2_regularizers = tf.where(tf.less(conv2_weights, -tf.divide(conv2_quan, 2.0)), f1_conv2,
+    #                               tf.where(tf.less(conv2_weights, tf.divide(conv2_quan, 2.0)), f2_conv2, f3_conv2))
     local3_regularizers = tf.where(tf.less(local3_weights, -tf.divide(local3_quan, 2.0)), f1_local3,
                                 tf.where(tf.less(local3_weights, tf.divide(local3_quan, 2.0)), f2_local3, f3_local3))
     local4_regularizers = tf.where(tf.less(local4_weights, -tf.divide(local4_quan, 2.0)), f1_local4,
@@ -158,7 +164,7 @@ def train():
                                    tf.where(tf.less(softmax_linear_weights, tf.divide(softmax_linear_quan, 2.0)), f2_softmax_linear, f3_softmax_linear))
 
     quantify_regularizers = (tf.reduce_sum(conv1_regularizers) +
-                             tf.reduce_sum(conv2_regularizers) +
+                             # tf.reduce_sum(conv2_regularizers) +
                              tf.reduce_sum(local3_regularizers) +
                              tf.reduce_sum(local4_regularizers)+
                              tf.reduce_sum(softmax_linear_regularizers))
@@ -245,16 +251,60 @@ def train():
     #     train_op = tf.group(train_op, tf.no_op())
       # summary_writer.add_summary(summary_str, global_step)
 
-    with tf.train.MonitoredTrainingSession(
-        save_summaries_steps=10,
-        checkpoint_dir=FLAGS.train_dir,
-        # checkpoint_dir=FLAGS.fine_tuning_dir,
-        hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
-               tf.train.NanTensorHook(total_loss),
-               _LoggerHook()],
-        config=config) as mon_sess:
-      while not mon_sess.should_stop():
-        mon_sess.run(train_op)
+    for var in tf.trainable_variables():
+        tf.summary.histogram(var.op.name, var)
+
+
+
+    with tf.Session(config=config) as sess:
+        # saver = tf.train.import_meta_graph('./tb_no_quantization_baseline_300000/cifar10_train/model.ckpt-300000.meta')
+        sess.run(tf.global_variables_initializer())
+
+        # var_dic = {}
+        # _vars = tf.trainable_variables()
+        # for _var in _vars:
+        #     if re.compile(".*weights.*").match(var.op.name) or re.compile(".*biases.*").match(var.op.name):
+        #         _var_name = _var.op.name
+        #         var_dic[_var_name] = _var
+        # saver = tf.train.Saver(var_dic)
+        saver = tf.train.Saver(tf.trainable_variables())
+        saver.restore(sess, "./cifar10_train/model.ckpt-400")
+
+        # if FLAGS.pretrained_model_checkpoint_path:
+        #     assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
+        #     ckpt = tf.train.get_checkpoint_state(FLAGS.pretrained_model_checkpoint_path)
+        #     if ckpt and ckpt.model_checkpoint_path:
+        #         #trained_step = ckpt.model_checkpoint_path.split('/')[-1].split('-')[-1]
+        #         variables_to_restore = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+        #         restorer = tf.train.Saver(variables_to_restore)
+        #         restorer.restore(sess, ckpt.model_checkpoint_path)
+        #         print('%s: Pre-trained model restored from %s' %
+        #               (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
+        #     else:
+        #         print('%s: Restoring pre-trained model from %s failed!' %
+        #               (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
+        #         exit()
+        # Start the queue runners.
+        tf.train.start_queue_runners(sess=sess)
+        saver = tf.train.Saver()
+        checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+
+        for step in xrange(FLAGS.max_steps):
+            _, mloss = sess.run([train_op, total_loss])
+            print('step {}: total loss {}'.format(step, mloss))
+            if step%100==0:
+                saver.save(sess, checkpoint_path, global_step=step)
+
+
+    # with tf.train.MonitoredTrainingSession(
+    #     save_summaries_steps=10,
+    #     checkpoint_dir=FLAGS.train_dir,
+    #     hooks=[tf.train.StopAtStepHook(last_step=FLAGS.max_steps),
+    #            tf.train.NanTensorHook(total_loss),
+    #            _LoggerHook()],
+    #     config=config) as mon_sess:
+    #   while not mon_sess.should_stop():
+    #     mon_sess.run(train_op)
 
 def main(argv=None):  # pylint: disable=unused-argument
   cifar10.maybe_download_and_extract()

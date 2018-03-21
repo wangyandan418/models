@@ -48,13 +48,13 @@ FLAGS = tf.app.flags.FLAGS
 
 # tf.app.flags.DEFINE_string('eval_dir', '/tmp/cifar10_eval',
 #                            """Directory where to write event logs.""")
-tf.app.flags.DEFINE_string('eval_dir', './tb_no_quantization_baseline_600000/cifar10_eval',
+tf.app.flags.DEFINE_string('eval_dir', './tb_lr_0.0002_wd_0.001_ti_300000_Bernoulli/cifar10_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
 # tf.app.flags.DEFINE_string('checkpoint_dir', '/tmp/cifar10_train',
 #                            """Directory where to read model checkpoints.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', './tb_no_quantization_baseline_600000/cifar10_train',
+tf.app.flags.DEFINE_string('checkpoint_dir', './tb_lr_0.0002_wd_0.001_ti_300000_Bernoulli/cifar10_train',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -90,7 +90,8 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
       return
 
     conv1_quan = tf.constant(0.18)
-    conv2_quan = tf.constant(0.33)
+    # conv2_quan = tf.constant(0.33)
+    conv2_quan = tf.constant(0.05)
     # conv2_quan = tf.constant(0.22)
     local3_quan = tf.constant(0.03)
     local4_quan = tf.constant(0.04)
@@ -108,10 +109,10 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
           sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv1_quan, 2.0)), -conv1_quan * conv1_ones_shape,
                   tf.where(tf.less(var, tf.divide(conv1_quan, 2.0)), 0. * conv1_ones_shape, conv1_quan * conv1_ones_shape))))
 
-        elif re.compile(weights_pattern_conv2).match(var.op.name):
-          conv2_ones_shape = tf.ones(shape=tf.shape(var))
-          sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv2_quan, 2.0)), -conv2_quan * conv2_ones_shape,
-                  tf.where(tf.less(var, tf.divide(conv2_quan, 2.0)), 0. * conv2_ones_shape, conv2_quan * conv2_ones_shape))))
+    #     elif re.compile(weights_pattern_conv2).match(var.op.name):
+    #       conv2_ones_shape = tf.ones(shape=tf.shape(var))
+    #       sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv2_quan, 2.0)), -conv2_quan * conv2_ones_shape,
+    #               tf.where(tf.less(var, tf.divide(conv2_quan, 2.0)), 0. * conv2_ones_shape, conv2_quan * conv2_ones_shape))))
         elif re.compile(weights_pattern_local3).match(var.op.name):
           local3_ones_shape = tf.ones(shape=tf.shape(var))
           sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(local3_quan, 2.0)), -local3_quan * local3_ones_shape,
@@ -169,7 +170,7 @@ def evaluate():
     # Build a Graph that computes the logits predictions from the
     # inference model.
     logits = cifar10.inference(images)
-    saver.restore(sess, ckpt.model_checkpoint_path)
+    # saver.restore(sess, ckpt.model_checkpoint_path)
 
     # Calculate predictions.
     top_k_op = tf.nn.in_top_k(logits, labels, 1)
