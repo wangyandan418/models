@@ -51,7 +51,7 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './tmp/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './lr_0.0002_wd_0.00005_ti_400000/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
@@ -106,14 +106,11 @@ def train():
     # local4_quan = tf.multiply(n, local4_std_co)
     # softmax_linear_quan = tf.multiply(n, softmax_linear_std_co)
 
-    conv1_quan = tf.constant(0.18)
-    # conv2_quan = tf.constant(0.33)
-    conv2_quan = tf.constant(0.05)
-    # conv2_quan = tf.constant(0.22)
-    local3_quan = tf.constant(0.03)
-    local4_quan = tf.constant(0.04)
-    # softmax_linear_quan = tf.constant(2.0)
-    softmax_linear_quan = tf.constant(0.4)
+    conv1_quan = tf.constant(0.2)
+    conv2_quan = tf.constant(0.09)
+    local3_quan = tf.constant(0.04)
+    local4_quan = tf.constant(0.1)
+    softmax_linear_quan = tf.constant(0.39)
 
     for var in tf.trainable_variables():
         weights_pattern_conv1 = ".*conv1/weights.*"
@@ -154,8 +151,8 @@ def train():
 
     conv1_regularizers = tf.where(tf.less(conv1_weights, -tf.divide(conv1_quan, 2.0)), f1_conv1,
                                   tf.where(tf.less(conv1_weights, tf.divide(conv1_quan, 2.0)), f2_conv1, f3_conv1))
-    # conv2_regularizers = tf.where(tf.less(conv2_weights, -tf.divide(conv2_quan, 2.0)), f1_conv2,
-    #                               tf.where(tf.less(conv2_weights, tf.divide(conv2_quan, 2.0)), f2_conv2, f3_conv2))
+    conv2_regularizers = tf.where(tf.less(conv2_weights, -tf.divide(conv2_quan, 2.0)), f1_conv2,
+                                  tf.where(tf.less(conv2_weights, tf.divide(conv2_quan, 2.0)), f2_conv2, f3_conv2))
     local3_regularizers = tf.where(tf.less(local3_weights, -tf.divide(local3_quan, 2.0)), f1_local3,
                                 tf.where(tf.less(local3_weights, tf.divide(local3_quan, 2.0)), f2_local3, f3_local3))
     local4_regularizers = tf.where(tf.less(local4_weights, -tf.divide(local4_quan, 2.0)), f1_local4,
@@ -164,7 +161,7 @@ def train():
                                    tf.where(tf.less(softmax_linear_weights, tf.divide(softmax_linear_quan, 2.0)), f2_softmax_linear, f3_softmax_linear))
 
     quantify_regularizers = (tf.reduce_sum(conv1_regularizers) +
-                             # tf.reduce_sum(conv2_regularizers) +
+                             tf.reduce_sum(conv2_regularizers) +
                              tf.reduce_sum(local3_regularizers) +
                              tf.reduce_sum(local4_regularizers)+
                              tf.reduce_sum(softmax_linear_regularizers))
@@ -191,7 +188,8 @@ def train():
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
-    total_loss = cross_entropy+0.001*deformable_regularizers
+    total_loss = cross_entropy + 0.0005 * l2_loss
+    # total_loss = cross_entropy+0.001*deformable_regularizers
     train_op = cifar10.train(total_loss, global_step)
 
     # for var in tf.trainable_variables():
@@ -254,11 +252,19 @@ def train():
     for var in tf.trainable_variables():
         tf.summary.histogram(var.op.name, var)
 
+    summaries = tf.get_collection(tf.GraphKeys.SUMMARIES)
+    # Build the summary operation from the last tower summaries.
+    summary_op = tf.summary.merge(summaries)
 
+    summary_writer = tf.summary.FileWriter(
+        FLAGS.train_dir,
+        graph=tf.get_default_graph())
 
     with tf.Session(config=config) as sess:
         # saver = tf.train.import_meta_graph('./tb_no_quantization_baseline_300000/cifar10_train/model.ckpt-300000.meta')
         sess.run(tf.global_variables_initializer())
+
+
 
         # var_dic = {}
         # _vars = tf.trainable_variables()
@@ -267,8 +273,8 @@ def train():
         #         _var_name = _var.op.name
         #         var_dic[_var_name] = _var
         # saver = tf.train.Saver(var_dic)
-        saver = tf.train.Saver(tf.trainable_variables())
-        saver.restore(sess, "./cifar10_train/model.ckpt-400")
+        # saver = tf.train.Saver(tf.trainable_variables())
+        # saver.restore(sess, "./cifar10_train/model.ckpt-400")
 
         # if FLAGS.pretrained_model_checkpoint_path:
         #     assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
@@ -289,10 +295,13 @@ def train():
         saver = tf.train.Saver()
         checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
 
-        for step in xrange(FLAGS.max_steps):
+        for step in xrange(FLAGS.max_steps+1):
+            if step % 1000 == 0:
+                summary_str = sess.run(summary_op)
+                summary_writer.add_summary(summary_str, step)
             _, mloss = sess.run([train_op, total_loss])
             print('step {}: total loss {}'.format(step, mloss))
-            if step%100==0:
+            if step%10000==0:
                 saver.save(sess, checkpoint_path, global_step=step)
 
 

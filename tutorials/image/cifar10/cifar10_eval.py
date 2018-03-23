@@ -48,13 +48,13 @@ FLAGS = tf.app.flags.FLAGS
 
 # tf.app.flags.DEFINE_string('eval_dir', '/tmp/cifar10_eval',
 #                            """Directory where to write event logs.""")
-tf.app.flags.DEFINE_string('eval_dir', './tb_lr_0.0002_wd_0.001_ti_300000_Bernoulli/cifar10_eval',
+tf.app.flags.DEFINE_string('eval_dir', './lr_0.0002_wd_0.0005_ti_400000/cifar10_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
 # tf.app.flags.DEFINE_string('checkpoint_dir', '/tmp/cifar10_train',
 #                            """Directory where to read model checkpoints.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', './tb_lr_0.0002_wd_0.001_ti_300000_Bernoulli/cifar10_train',
+tf.app.flags.DEFINE_string('checkpoint_dir', './lr_0.0002_wd_0.0005_ti_400000/cifar10_train',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -89,13 +89,11 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
       print('No checkpoint file found')
       return
 
-    conv1_quan = tf.constant(0.18)
-    # conv2_quan = tf.constant(0.33)
-    conv2_quan = tf.constant(0.05)
-    # conv2_quan = tf.constant(0.22)
-    local3_quan = tf.constant(0.03)
-    local4_quan = tf.constant(0.04)
-    softmax_linear_quan = tf.constant(0.4)
+    conv1_quan = tf.constant(0.2)
+    conv2_quan = tf.constant(0.09)
+    local3_quan = tf.constant(0.04)
+    local4_quan = tf.constant(0.1)
+    softmax_linear_quan = tf.constant(0.39)
     sess.run(tf.Print(softmax_linear_quan, [softmax_linear_quan], 'softmax_linear_quan'))
 
     for var in tf.trainable_variables():
