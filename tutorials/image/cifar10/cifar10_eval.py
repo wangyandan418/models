@@ -48,13 +48,13 @@ FLAGS = tf.app.flags.FLAGS
 
 # tf.app.flags.DEFINE_string('eval_dir', '/tmp/cifar10_eval',
 #                            """Directory where to write event logs.""")
-tf.app.flags.DEFINE_string('eval_dir', './lr_0.0002_wd_0.0005_ti_400000/cifar10_eval',
+tf.app.flags.DEFINE_string('eval_dir', './pretrain_lr_0.0002_wd_0.001_ti_500000/cifar10_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
 # tf.app.flags.DEFINE_string('checkpoint_dir', '/tmp/cifar10_train',
 #                            """Directory where to read model checkpoints.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', './lr_0.0002_wd_0.0005_ti_400000/cifar10_train',
+tf.app.flags.DEFINE_string('checkpoint_dir', './pretrain_lr_0.0002_wd_0.001_ti_500000/cifar10_train',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -102,27 +102,26 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
         weights_pattern_local3 = ".*local3/weights.*"
         weights_pattern_local4 = ".*local4/weights.*"
         weights_pattern_softmax_linear = ".*local4/softmax_linear/weights.*"
-        if re.compile(weights_pattern_conv1).match(var.op.name):
-          conv1_ones_shape = tf.ones(shape=tf.shape(var))
-          sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv1_quan, 2.0)), -conv1_quan * conv1_ones_shape,
-                  tf.where(tf.less(var, tf.divide(conv1_quan, 2.0)), 0. * conv1_ones_shape, conv1_quan * conv1_ones_shape))))
-
-    #     elif re.compile(weights_pattern_conv2).match(var.op.name):
-    #       conv2_ones_shape = tf.ones(shape=tf.shape(var))
-    #       sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv2_quan, 2.0)), -conv2_quan * conv2_ones_shape,
-    #               tf.where(tf.less(var, tf.divide(conv2_quan, 2.0)), 0. * conv2_ones_shape, conv2_quan * conv2_ones_shape))))
-        elif re.compile(weights_pattern_local3).match(var.op.name):
-          local3_ones_shape = tf.ones(shape=tf.shape(var))
-          sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(local3_quan, 2.0)), -local3_quan * local3_ones_shape,
-                  tf.where(tf.less(var, tf.divide(local3_quan, 2.0)), 0. * local3_ones_shape, local3_quan * local3_ones_shape))))
-        elif re.compile(weights_pattern_local4).match(var.op.name):
-          local4_ones_shape = tf.ones(shape=tf.shape(var))
-          sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(local4_quan, 2.0)), -local4_quan * local4_ones_shape,
-                  tf.where(tf.less(var, tf.divide(local4_quan, 2.0)), 0. * local4_ones_shape, local4_quan * local4_ones_shape))))
-        elif re.compile(weights_pattern_softmax_linear).match(var.op.name):
-          softmax_linear_ones_shape = tf.ones(shape=tf.shape(var))
-          sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(softmax_linear_quan, 2.0)), -softmax_linear_quan * softmax_linear_ones_shape,
-                  tf.where(tf.less(var, tf.divide(softmax_linear_quan, 2.0)), 0. * softmax_linear_ones_shape, softmax_linear_quan * softmax_linear_ones_shape))))
+        # if re.compile(weights_pattern_conv1).match(var.op.name):
+        #   conv1_ones_shape = tf.ones(shape=tf.shape(var))
+        #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv1_quan, 2.0)), -conv1_quan * conv1_ones_shape,
+        #           tf.where(tf.less(var, tf.divide(conv1_quan, 2.0)), 0. * conv1_ones_shape, conv1_quan * conv1_ones_shape))))
+        # elif re.compile(weights_pattern_conv2).match(var.op.name):
+        #   conv2_ones_shape = tf.ones(shape=tf.shape(var))
+        #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv2_quan, 2.0)), -conv2_quan * conv2_ones_shape,
+        #           tf.where(tf.less(var, tf.divide(conv2_quan, 2.0)), 0. * conv2_ones_shape, conv2_quan * conv2_ones_shape))))
+        # elif re.compile(weights_pattern_local3).match(var.op.name):
+        #   local3_ones_shape = tf.ones(shape=tf.shape(var))
+        #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(local3_quan, 2.0)), -local3_quan * local3_ones_shape,
+        #           tf.where(tf.less(var, tf.divide(local3_quan, 2.0)), 0. * local3_ones_shape, local3_quan * local3_ones_shape))))
+        # elif re.compile(weights_pattern_local4).match(var.op.name):
+        #   local4_ones_shape = tf.ones(shape=tf.shape(var))
+        #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(local4_quan, 2.0)), -local4_quan * local4_ones_shape,
+        #           tf.where(tf.less(var, tf.divide(local4_quan, 2.0)), 0. * local4_ones_shape, local4_quan * local4_ones_shape))))
+        # elif re.compile(weights_pattern_softmax_linear).match(var.op.name):
+        #   softmax_linear_ones_shape = tf.ones(shape=tf.shape(var))
+        #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(softmax_linear_quan, 2.0)), -softmax_linear_quan * softmax_linear_ones_shape,
+        #           tf.where(tf.less(var, tf.divide(softmax_linear_quan, 2.0)), 0. * softmax_linear_ones_shape, softmax_linear_quan * softmax_linear_ones_shape))))
 
 
     # Start the queue runners.

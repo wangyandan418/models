@@ -51,7 +51,7 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './lr_0.0002_wd_0.00005_ti_400000/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './pretrain_lr_0.0002_wd_0.005_ti_500000/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
@@ -65,7 +65,7 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', './cifar10_train/
 
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
 #                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 300000,
+tf.app.flags.DEFINE_integer('max_steps', 500000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -179,7 +179,7 @@ def train():
     a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
 
     b = tf.Variable(0.5, trainable=False, name='b')
-    # tf.summary.scalar(b.op.name, b)
+    tf.summary.scalar(b.op.name, b)
     b = tf.assign(b, tf.random_uniform([], 0., 1.))
 
     deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
@@ -188,9 +188,11 @@ def train():
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
-    total_loss = cross_entropy + 0.0005 * l2_loss
+    total_loss = cross_entropy + 0.005 * l2_loss
     # total_loss = cross_entropy+0.001*deformable_regularizers
     train_op = cifar10.train(total_loss, global_step)
+
+    tf.summary.scalar('total_loss', total_loss)
 
     # for var in tf.trainable_variables():
     #   pattern = ".*weights.*"
@@ -263,18 +265,15 @@ def train():
     with tf.Session(config=config) as sess:
         # saver = tf.train.import_meta_graph('./tb_no_quantization_baseline_300000/cifar10_train/model.ckpt-300000.meta')
         sess.run(tf.global_variables_initializer())
-
-
-
-        # var_dic = {}
-        # _vars = tf.trainable_variables()
-        # for _var in _vars:
-        #     if re.compile(".*weights.*").match(var.op.name) or re.compile(".*biases.*").match(var.op.name):
-        #         _var_name = _var.op.name
-        #         var_dic[_var_name] = _var
-        # saver = tf.train.Saver(var_dic)
+        var_dic = {}
+        _vars = tf.global_variables()
+        for _var in _vars:
+            if re.compile(".*weights.*").match(var.op.name) or re.compile(".*biases.*").match(var.op.name) or re.compile(".*MovingAverage.*").match(var.op.name):
+                _var_name = _var.op.name
+                var_dic[_var_name] = _var
+        saver = tf.train.Saver(var_dic)
         # saver = tf.train.Saver(tf.trainable_variables())
-        # saver.restore(sess, "./cifar10_train/model.ckpt-400")
+        # saver.restore(sess, "./baseline_no_quan_lr_0.0002_wd_0.0005_ti_300000/cifar10_train/model.ckpt-299900")
 
         # if FLAGS.pretrained_model_checkpoint_path:
         #     assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
@@ -296,6 +295,7 @@ def train():
         checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
 
         for step in xrange(FLAGS.max_steps+1):
+        # for step in xrange(1):
             if step % 1000 == 0:
                 summary_str = sess.run(summary_op)
                 summary_writer.add_summary(summary_str, step)
