@@ -51,11 +51,11 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './pretrain_lr_0.0002_wd_0.005_ti_500000/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './finetune_lr_0.0002_wd_0.0001_ti_500000/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', './cifar10_train/',
+tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', './pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_500000/cifar10_train/',
                            """Directory where to write restore pretrained model """
                            """and checkpoint.""")
 
@@ -106,11 +106,11 @@ def train():
     # local4_quan = tf.multiply(n, local4_std_co)
     # softmax_linear_quan = tf.multiply(n, softmax_linear_std_co)
 
-    conv1_quan = tf.constant(0.2)
-    conv2_quan = tf.constant(0.09)
+    conv1_quan = tf.constant(0.15)
+    conv2_quan = tf.constant(0.08)
     local3_quan = tf.constant(0.04)
-    local4_quan = tf.constant(0.1)
-    softmax_linear_quan = tf.constant(0.39)
+    local4_quan = tf.constant(0.06)
+    softmax_linear_quan = tf.constant(0.29)
 
     for var in tf.trainable_variables():
         weights_pattern_conv1 = ".*conv1/weights.*"
@@ -178,18 +178,18 @@ def train():
     PI = tf.constant(math.pi)
     a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
 
-    b = tf.Variable(0.5, trainable=False, name='b')
-    tf.summary.scalar(b.op.name, b)
-    b = tf.assign(b, tf.random_uniform([], 0., 1.))
+    # b = tf.Variable(0.5, trainable=False, name='b')
+    # tf.summary.scalar(b.op.name, b)
+    # b = tf.assign(b, tf.random_uniform([], 0., 1.))
+    #
+    # deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
 
-    deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
-
-    # deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
+    deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
-    total_loss = cross_entropy + 0.005 * l2_loss
-    # total_loss = cross_entropy+0.001*deformable_regularizers
+    # total_loss = cross_entropy + 0.001 * l2_loss
+    total_loss = cross_entropy+0.00005*deformable_regularizers
     train_op = cifar10.train(total_loss, global_step)
 
     tf.summary.scalar('total_loss', total_loss)
@@ -273,7 +273,7 @@ def train():
                 var_dic[_var_name] = _var
         saver = tf.train.Saver(var_dic)
         # saver = tf.train.Saver(tf.trainable_variables())
-        # saver.restore(sess, "./baseline_no_quan_lr_0.0002_wd_0.0005_ti_300000/cifar10_train/model.ckpt-299900")
+        saver.restore(sess, "./pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_500000/cifar10_train/model.ckpt-500000")
 
         # if FLAGS.pretrained_model_checkpoint_path:
         #     assert tf.gfile.Exists(FLAGS.pretrained_model_checkpoint_path)
