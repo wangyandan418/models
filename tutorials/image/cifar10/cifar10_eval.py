@@ -48,13 +48,13 @@ FLAGS = tf.app.flags.FLAGS
 
 # tf.app.flags.DEFINE_string('eval_dir', '/tmp/cifar10_eval',
 #                            """Directory where to write event logs.""")
-tf.app.flags.DEFINE_string('eval_dir', './finetune_lr_0.0002_wd_0.001_ti_500000/cifar10_eval',
+tf.app.flags.DEFINE_string('eval_dir', './finetune_lr_0.0004_wd_0.001_conv1_0.1_ti_121000_Bernoulli/cifar10_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
 # tf.app.flags.DEFINE_string('checkpoint_dir', '/tmp/cifar10_train',
 #                            """Directory where to read model checkpoints.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', './finetune_lr_0.0002_wd_0.001_ti_500000/cifar10_train',
+tf.app.flags.DEFINE_string('checkpoint_dir', './finetune_lr_0.0002_wd_0.001_conv1_0.1_ti_30000_Bernoulli/cifar10_train',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -102,10 +102,13 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
         weights_pattern_local3 = ".*local3/weights.*"
         weights_pattern_local4 = ".*local4/weights.*"
         weights_pattern_softmax_linear = ".*local4/softmax_linear/weights.*"
+        # print(var.eval())
+
         # if re.compile(weights_pattern_conv1).match(var.op.name):
         #   conv1_ones_shape = tf.ones(shape=tf.shape(var))
         #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv1_quan, 2.0)), -conv1_quan * conv1_ones_shape,
         #           tf.where(tf.less(var, tf.divide(conv1_quan, 2.0)), 0. * conv1_ones_shape, conv1_quan * conv1_ones_shape))))
+        #   # print(var.eval())
         # elif re.compile(weights_pattern_conv2).match(var.op.name):
         #   conv2_ones_shape = tf.ones(shape=tf.shape(var))
         #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv2_quan, 2.0)), -conv2_quan * conv2_ones_shape,

@@ -51,13 +51,13 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './finetune_lr_0.0002_wd_0.0001_ti_500000/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './finetune_lr_0.0008_wd_0.001_conv1_0.1_ti_121000_Bernoulli/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 
-tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', './pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_500000/cifar10_train/',
-                           """Directory where to write restore pretrained model """
-                           """and checkpoint.""")
+# tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', './pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_130000/cifar10_train/',
+#                            """Directory where to write restore pretrained model """
+#                            """and checkpoint.""")
 
 # tf.app.flags.DEFINE_string('fine_tuning_dir', 'tb_baseline_400000/cifar10_train',
 #                            """Directory where to restore """
@@ -65,7 +65,7 @@ tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', './pretrain_basel
 
 # tf.app.flags.DEFINE_integer('max_steps', 1000000,
 #                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 500000,
+tf.app.flags.DEFINE_integer('max_steps', 121000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -160,7 +160,7 @@ def train():
     softmax_linear_regularizers = tf.where(tf.less(softmax_linear_weights, -tf.divide(softmax_linear_quan, 2.0)), f1_softmax_linear,
                                    tf.where(tf.less(softmax_linear_weights, tf.divide(softmax_linear_quan, 2.0)), f2_softmax_linear, f3_softmax_linear))
 
-    quantify_regularizers = (tf.reduce_sum(conv1_regularizers) +
+    quantify_regularizers = (100*tf.reduce_sum(conv1_regularizers) +
                              tf.reduce_sum(conv2_regularizers) +
                              tf.reduce_sum(local3_regularizers) +
                              tf.reduce_sum(local4_regularizers)+
@@ -178,21 +178,24 @@ def train():
     PI = tf.constant(math.pi)
     a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
 
-    # b = tf.Variable(0.5, trainable=False, name='b')
-    # tf.summary.scalar(b.op.name, b)
-    # b = tf.assign(b, tf.random_uniform([], 0., 1.))
-    #
-    # deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
+    b = tf.Variable(0.5, trainable=False, name='b')
+    tf.summary.scalar(b.op.name, b)
+    b = tf.assign(b, tf.random_uniform([], 0., 1.))
 
-    deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
+    deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
+
+    # deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
     # total_loss = cross_entropy + 0.001 * l2_loss
-    total_loss = cross_entropy+0.00005*deformable_regularizers
+    total_loss = cross_entropy+0.001*deformable_regularizers
+    # total_loss = cross_entropy + 0.001 * quantify_regularizers
     train_op = cifar10.train(total_loss, global_step)
 
     tf.summary.scalar('total_loss', total_loss)
+    tf.summary.scalar('cross_entropy', cross_entropy)
+    tf.summary.scalar('deformable_regularizers', deformable_regularizers)
 
     # for var in tf.trainable_variables():
     #   pattern = ".*weights.*"
@@ -301,7 +304,7 @@ def train():
                 summary_writer.add_summary(summary_str, step)
             _, mloss = sess.run([train_op, total_loss])
             print('step {}: total loss {}'.format(step, mloss))
-            if step%10000==0:
+            if step%1000==0:
                 saver.save(sess, checkpoint_path, global_step=step)
 
 
