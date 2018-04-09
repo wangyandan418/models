@@ -70,12 +70,18 @@ NUM_EXAMPLES_PER_EPOCH_FOR_EVAL = cifar10_input.NUM_EXAMPLES_PER_EPOCH_FOR_EVAL
 
 # Constants describing the training process.
 MOVING_AVERAGE_DECAY = 0.9999     # The decay to use for the moving average.
-NUM_EPOCHS_PER_DECAY = 350.0      # Epochs after which learning rate decays.
+# NUM_EPOCHS_PER_DECAY = 350.0      # Epochs after which learning rate decays.
+NUM_EPOCHS_PER_DECAY = 256.0      # Epochs after which learning rate decays.
 # NUM_EPOCHS_PER_DECAY = 200      # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor.
 # ADAM_INITIAL_LEARNING_RATE = 0.0002       # Initial learning rate for Adam optimizer.
-ADAM_INITIAL_LEARNING_RATE = 0.0008       # Initial learning rate for Adam optimizer.
+ADAM_INITIAL_LEARNING_RATE = 0.000005       # Initial learning rate for Adam optimizer.
 # ADAM_INITIAL_LEARNING_RATE = 0.0       # Initial learning rate for Adam optimizer.
+# INITIAL_LEARNING_RATE = 0.1       # Initial learning rate.
+INITIAL_LEARNING_RATE = 0.01       # Initial learning rate.
+CONV1_FILTER_NUM = 64
+CONV2_FILTER_NUM = 64
+
 
 
 # If a model is trained with multiple GPUs, prefix all Op names with tower_name
@@ -303,12 +309,17 @@ def inference(images):
   #   conv1 = tf.nn.relu(pre_activation, name=scope.name)
   #   _activation_summary(conv1)
 
+
   with tf.variable_scope('conv1') as scope:
+    # kernel = _variable_with_weight_decay('weights',
+    #                                      shape=[5, 5, 3, 64],
+    #                                      wd=1.0)
     kernel = _variable_with_weight_decay('weights',
-                                         shape=[5, 5, 3, 64],
+                                         shape=[5, 5, 3, CONV1_FILTER_NUM],
                                          wd=1.0)
     conv = tf.nn.conv2d(images, kernel, [1, 1, 1, 1], padding='SAME')
-    biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
+    # biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.0))
+    biases = _variable_on_cpu('biases', [CONV1_FILTER_NUM], tf.constant_initializer(0.0))
     pre_activation = tf.nn.bias_add(conv, biases)
     conv1 = tf.nn.relu(pre_activation, name=scope.name)
     _activation_summary(conv1)
@@ -334,11 +345,15 @@ def inference(images):
   #   _activation_summary(conv2)
 
   with tf.variable_scope('conv2') as scope:
+    # kernel = _variable_with_weight_decay('weights',
+    #                                      shape=[5, 5, 64, 64],
+    #                                      wd=1.0)
     kernel = _variable_with_weight_decay('weights',
-                                         shape=[5, 5, 64, 64],
+                                         shape=[5, 5, CONV1_FILTER_NUM, CONV2_FILTER_NUM],
                                          wd=1.0)
     conv = tf.nn.conv2d(norm1, kernel, [1, 1, 1, 1], padding='SAME')
-    biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
+    # biases = _variable_on_cpu('biases', [64], tf.constant_initializer(0.1))
+    biases = _variable_on_cpu('biases', [CONV2_FILTER_NUM], tf.constant_initializer(0.1))
     pre_activation = tf.nn.bias_add(conv, biases)
     conv2 = tf.nn.relu(pre_activation, name=scope.name)
     _activation_summary(conv2)
@@ -489,11 +504,12 @@ def train(total_loss, global_step):
   loss_averages_op = _add_loss_summaries(total_loss)
 
   # Compute gradients.
+  # mytrainable_list = tf.get_collection('mytrainable_list')
   with tf.control_dependencies([loss_averages_op]):
     # opt = tf.train.GradientDescentOptimizer(lr)
     opt = tf.train.AdamOptimizer(ADAM_INITIAL_LEARNING_RATE)
     grads = opt.compute_gradients(total_loss)
-    # init_op = tf.initialize_all_variables()
+    # grads = opt.compute_gradients(total_loss, mytrainable_list)
 
   # Apply gradients.
   apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)
