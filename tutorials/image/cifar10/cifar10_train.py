@@ -51,21 +51,10 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './Adam_finetune_lr_0.000005_wd_0.00001_conv1_0.12_local3_0.008_ti_200000_Bernoulli/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './test5/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-
-# tf.app.flags.DEFINE_string('pretrained_model_checkpoint_path', './pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_130000/cifar10_train/',
-#                            """Directory where to write restore pretrained model """
-#                            """and checkpoint.""")
-
-# tf.app.flags.DEFINE_string('fine_tuning_dir', 'tb_baseline_400000/cifar10_train',
-#                            """Directory where to restore """
-#                            """and checkpoint.""")
-
-# tf.app.flags.DEFINE_integer('max_steps', 1000000,
-#                             """Number of batches to run.""")
-tf.app.flags.DEFINE_integer('max_steps', 200000,
+tf.app.flags.DEFINE_integer('max_steps', 300000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -171,11 +160,12 @@ def train():
     softmax_linear_regularizers = tf.where(tf.less(softmax_linear_weights, -tf.divide(softmax_linear_quan, 2.0)), f1_softmax_linear,
                                    tf.where(tf.less(softmax_linear_weights, tf.divide(softmax_linear_quan, 2.0)), f2_softmax_linear, f3_softmax_linear))
 
-    quantify_regularizers = (120*tf.reduce_sum(conv1_regularizers)
-                             + tf.reduce_sum(conv2_regularizers)
-                             + 8*tf.reduce_sum(local3_regularizers)
-                             + tf.reduce_sum(local4_regularizers)
-                             + tf.reduce_sum(softmax_linear_regularizers)
+    quantify_regularizers = (
+                            tf.reduce_sum(conv1_regularizers)
+                             # tf.reduce_sum(conv2_regularizers)
+                             # + tf.reduce_sum(local3_regularizers)
+                             # + tf.reduce_sum(local4_regularizers)
+                             # + tf.reduce_sum(softmax_linear_regularizers)
                              )
 
     # # a changes with a square root of cosine function
@@ -193,25 +183,27 @@ def train():
     tf.summary.scalar(a.op.name, a)
     PI = tf.constant(math.pi)
     a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
+    # a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, 150000) * tf.cast(global_step, tf.float32))) + 1e-8)
 
     b = tf.Variable(0.5, trainable=False, name='b')
     tf.summary.scalar(b.op.name, b)
     b = tf.assign(b, tf.random_uniform([], 0., 1.))
 
     deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
+    DECAY = tf.constant(0.001)
 
     # deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
     # total_loss = cross_entropy + 0.001 * l2_loss
-    total_loss = cross_entropy+0.00001*deformable_regularizers
+    total_loss = cross_entropy+DECAY*deformable_regularizers
     # total_loss = cross_entropy + 0.001 * quantify_regularizers
     train_op = cifar10.train(total_loss, global_step)
 
     tf.summary.scalar('total_loss', total_loss)
     tf.summary.scalar('cross_entropy', cross_entropy)
-    tf.summary.scalar('deformable_regularizers', deformable_regularizers)
+    tf.summary.scalar('DECAY*deformable_regularizers', tf.multiply(DECAY, deformable_regularizers))
 
     # for var in tf.trainable_variables():
     #   pattern = ".*weights.*"
@@ -287,13 +279,14 @@ def train():
         var_dic = {}
         _vars = tf.global_variables()
         for _var in _vars:
-            if re.compile(".*weights.*").match(_var.op.name) or re.compile(".*biases.*").match(_var.op.name) or re.compile(".*MovingAverage.*").match(_var.op.name):
+            if re.compile(".*weights").match(_var.op.name) or re.compile(".*biases").match(_var.op.name) or re.compile(".*MovingAverage.*").match(_var.op.name) or re.compile(".*Adam.*").match(_var.op.name):
+            # if re.compile("conv1.*").match(_var.op.name) or re.compile("conv2.*").match(_var.op.name) or re.compile("local3.*").match(_var.op.name) or re.compile("local4.*").match(_var.op.name):
                 _var_name = _var.op.name
                 var_dic[_var_name] = _var
-        saver = tf.train.Saver(var_dic)
+        saver = tf.train.Saver()
 
         saver.restore(sess, "./pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_500000/cifar10_train/model.ckpt-500000")
-        # saver.restore(sess, "./Adam_finetune_conv1_lr_0.0001_wd_0.01_ti_121000_Bernoulli/cifar10_train/model.ckpt-121000")
+        # saver.restore(sess, "./Adam_finetune_conv1_lr_0.00005_wd_0.01_ti_150000_Bernoulli/cifar10_train/model.ckpt-150000")
         # saver.restore(sess, "./Adam_finetune_freeze_conv1_conv2_0.005_lr_0.0001_ti_121000_Bernoulli/cifar10_train/model.ckpt-121000")
 
 
@@ -317,14 +310,14 @@ def train():
         saver = tf.train.Saver()
         checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
 
-        for step in xrange(FLAGS.max_steps+1):
-        # for step in xrange(1):
-            if step % 1000 == 0:
+        # for step in xrange(FLAGS.max_steps+1):
+        for step in xrange(1):
+            if step % 1 == 0:
                 summary_str = sess.run(summary_op)
                 summary_writer.add_summary(summary_str, step)
             _, mloss = sess.run([train_op, total_loss])
             print('step {}: total loss {}'.format(step, mloss))
-            if step%1000==0:
+            if step%1==0:
                 saver.save(sess, checkpoint_path, global_step=step)
 
 
