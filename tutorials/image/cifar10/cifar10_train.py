@@ -279,13 +279,14 @@ def train():
         var_dic = {}
         _vars = tf.global_variables()
         for _var in _vars:
-            if re.compile(".*weights").match(_var.op.name) or re.compile(".*biases").match(_var.op.name) or re.compile(".*MovingAverage.*").match(_var.op.name) or re.compile(".*Adam.*").match(_var.op.name):
-            # if re.compile("conv1.*").match(_var.op.name) or re.compile("conv2.*").match(_var.op.name) or re.compile("local3.*").match(_var.op.name) or re.compile("local4.*").match(_var.op.name):
+            pattern = re.compile("(.*conv1/weights$)|(.*conv2/weights$)|(.*local3/weights$)|(.*local4/weights$)|(.*local4/softmax_linear/weights$)|(.*conv1/biases$)|(.*conv2/biases$)|(.*local3/biases$)|(.*local4/biases$)|(.*local4/softmax_linear/biases$)|(.*MovingAverage$)")
+            if pattern.match(_var.op.name) :
                 _var_name = _var.op.name
                 var_dic[_var_name] = _var
-        saver = tf.train.Saver()
+        saver = tf.train.Saver(var_dic)
 
         saver.restore(sess, "./pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_500000/cifar10_train/model.ckpt-500000")
+        sess.run(tf.Print(global_step, [global_step], 'global_step'))
         # saver.restore(sess, "./Adam_finetune_conv1_lr_0.00005_wd_0.01_ti_150000_Bernoulli/cifar10_train/model.ckpt-150000")
         # saver.restore(sess, "./Adam_finetune_freeze_conv1_conv2_0.005_lr_0.0001_ti_121000_Bernoulli/cifar10_train/model.ckpt-121000")
 
@@ -306,9 +307,14 @@ def train():
         #               (datetime.now(), FLAGS.pretrained_model_checkpoint_path))
         #         exit()
         # Start the queue runners.
-        tf.train.start_queue_runners(sess=sess)
+        coord = tf.train.Coordinator()
+        threads = tf.train.start_queue_runners(sess=sess, coord=coord)
+
         saver = tf.train.Saver()
         checkpoint_path = os.path.join(FLAGS.train_dir, 'model.ckpt')
+
+        coord.request_stop()
+        coord.join(threads)
 
         # for step in xrange(FLAGS.max_steps+1):
         for step in xrange(1):
