@@ -48,11 +48,11 @@ FLAGS = tf.app.flags.FLAGS
 
 # tf.app.flags.DEFINE_string('eval_dir', '/tmp/cifar10_eval',
 #                            """Directory where to write event logs.""")
-tf.app.flags.DEFINE_string('eval_dir', './Adam_finetune_freeze_conv1_conv2_0.02_lr_0.00001_ti_121000_Bernoulli_v2/cifar10_eval',
+tf.app.flags.DEFINE_string('eval_dir', './Adam_finetune_conv1_lr_0.00005_wd_0.02_ti_150000_aL1/cifar10_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', './Adam_finetune_freeze_conv1_conv2_0.02_lr_0.00001_ti_121000_Bernoulli_v2/cifar10_train',
+tf.app.flags.DEFINE_string('checkpoint_dir', './Adam_finetune_conv1_lr_0.00005_wd_0.02_ti_150000_aL1/cifar10_train',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
@@ -97,7 +97,7 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
     local3_quan = tf.constant(0.03)
     local4_quan = tf.constant(0.05)
     softmax_linear_quan = tf.constant(0.29)
-    sess.run(tf.Print(conv1_quan, [conv1_quan], 'conv1_quan'))
+    # sess.run(tf.Print(conv1_quan, [conv1_quan], 'conv1_quan'))
 
     for var in tf.trainable_variables():
         weights_pattern_conv1 = "conv1/weights$"
@@ -110,7 +110,6 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
         #   conv1_ones_shape = tf.ones(shape=tf.shape(var))
         #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv1_quan, 2.0)), -conv1_quan * conv1_ones_shape,
         #           tf.where(tf.less(var, tf.divide(conv1_quan, 2.0)), 0. * conv1_ones_shape, conv1_quan * conv1_ones_shape))))
-        # #   # print(var.eval())
         # elif re.compile(weights_pattern_conv2).match(var.op.name):
         #   conv2_ones_shape = tf.ones(shape=tf.shape(var))
         #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv2_quan, 2.0)), -conv2_quan * conv2_ones_shape,
@@ -181,7 +180,8 @@ def evaluate():
     variable_averages = tf.train.ExponentialMovingAverage(
         cifar10.MOVING_AVERAGE_DECAY)
     variables_to_restore = variable_averages.variables_to_restore()
-    saver = tf.train.Saver(variables_to_restore)
+    #saver = tf.train.Saver(variables_to_restore)
+    saver = tf.train.Saver(tf.trainable_variables())
 
 
     # Build the summary operation based on the TF collection of Summaries.

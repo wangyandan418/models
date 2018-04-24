@@ -51,10 +51,10 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './Adam_finetune_freeze_conv1_conv2_0.005_lr_0.00005_ti_121000_Bernoulli_v2/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './Adam_finetune_conv1_lr_0.00005_wd_0.015_ti_150000_aL1/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
-tf.app.flags.DEFINE_integer('max_steps', 121000,
+tf.app.flags.DEFINE_integer('max_steps', 150000,
                             """Number of batches to run.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
@@ -109,13 +109,15 @@ def train():
     mytrainable_list = []
     for var in tf.trainable_variables():
         # mytrainable_list.append(var)
-        weights_pattern_conv1 = ".*conv1/weights.*"
-        weights_pattern_conv2 = ".*conv2/weights.*"
-        weights_pattern_local3 = ".*local3/weights.*"
-        weights_pattern_local4 = ".*local4/weights.*"
-        weights_pattern_softmax_linear = ".*local4/softmax_linear/weights.*"
+        weights_pattern_conv1 = ".*conv1/weights$"
+        weights_pattern_conv2 = ".*conv2/weights$"
+        weights_pattern_local3 = ".*local3/weights$"
+        weights_pattern_local4 = ".*local4/weights$"
+        weights_pattern_softmax_linear = ".*local4/softmax_linear/weights$"
+        bias_pattern = re.compile("(.*conv1/biases$)|(.*conv2/biases$)|(.*local3/biases$)|(.*local4/biases$)|(.*local4/softmax_linear/biases$)")
         if re.compile(weights_pattern_conv1).match(var.op.name):
           conv1_weights = var
+          mytrainable_list.append(var)
         elif re.compile(weights_pattern_conv2).match(var.op.name):
           conv2_weights = var
           mytrainable_list.append(var)
@@ -128,6 +130,10 @@ def train():
         elif re.compile(weights_pattern_softmax_linear).match(var.op.name):
           softmax_linear_weights = var
           mytrainable_list.append(var)
+        elif bias_pattern.match(var.op.name):
+          mytrainable_list.append(var)
+        else:
+          raise RuntimeError('Some variables are not matched!!!')
     tf.add_to_collection('mytrainable_list', mytrainable_list)
 
     f1_conv1 = tf.sign(conv1_weights + conv1_quan) * (conv1_weights + conv1_quan)
@@ -162,11 +168,11 @@ def train():
                                    tf.where(tf.less(softmax_linear_weights, tf.divide(softmax_linear_quan, 2.0)), f2_softmax_linear, f3_softmax_linear))
 
     quantify_regularizers = (
-                            # tf.reduce_sum(conv1_regularizers)
-                             tf.reduce_sum(conv2_regularizers)
-                             # + tf.reduce_sum(local3_regularizers)
-                             # + tf.reduce_sum(local4_regularizers)
-                             # + tf.reduce_sum(softmax_linear_regularizers)
+                            tf.reduce_sum(conv1_regularizers)
+                            #  tf.reduce_sum(conv2_regularizers)
+                            #  tf.reduce_sum(local3_regularizers)
+                            #  tf.reduce_sum(local4_regularizers)
+                            #  tf.reduce_sum(softmax_linear_regularizers)
                              )
 
     # # a changes with a square root of cosine function
@@ -184,16 +190,15 @@ def train():
     tf.summary.scalar(a.op.name, a)
     PI = tf.constant(math.pi)
     a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
-    # a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, 150000) * tf.cast(global_step, tf.float32))) + 1e-8)
 
-    b = tf.Variable(0.5, trainable=False, name='b')
-    tf.summary.scalar(b.op.name, b)
-    b = tf.assign(b, tf.random_uniform([], 0., 1.))
+    # b = tf.Variable(0.5, trainable=False, name='b')
+    # tf.summary.scalar(b.op.name, b)
+    # b = tf.assign(b, tf.random_uniform([], 0., 1.))
+    # deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
 
-    deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
-    DECAY = tf.constant(0.005)
+    DECAY = tf.constant(0.015)
 
-    # deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
+    deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
@@ -286,9 +291,17 @@ def train():
                 var_dic[_var_name] = _var
         saver = tf.train.Saver(var_dic)
 
-        # saver.restore(sess, "./pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_500000/cifar10_train/model.ckpt-500000")
-        # sess.run(tf.Print(global_step, [global_step], 'global_step'))
-        saver.restore(sess, "./Adam_finetune_conv1_lr_0.00005_wd_0.01_ti_150000_Bernoulli/cifar10_train/model.ckpt-150000")
+        saver.restore(sess, "./pretrain_baseline_0.872_lr_0.0002_wd_0.001_ti_500000/cifar10_train/model.ckpt-500000")
+        # saver.restore(sess, "./Adam_finetune_conv1_lr_0.00005_wd_0.01_ti_150000_Bernoulli/cifar10_train/model.ckpt-150000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv1_conv2_0.006_lr_0.0001_ti_121000_Bernoulli_v2/cifar10_train/model.ckpt-121000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv1_conv2_0.006_lr_0.0001_ti_121000_Bernoulli_v3/cifar10_train/model.ckpt-121000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv12_local3_0.003_lr_0.0001_ti_121000_Bernoulli/cifar10_train/model.ckpt-121000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv12_local3_0.002_lr_0.0001_ti_121000_Bernoulli_v3/cifar10_train/model.ckpt-121000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv12local3_local4_0.01_lr_0.00005_ti_121000_Bernoulli/cifar10_train/model.ckpt-121000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv12local3_local4_0.004_lr_0.0001_ti_121000_Bernoulli_v3/cifar10_train/model.ckpt-121000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv12local3_local4_0.008_lr_0.00005_ti_121000_Bernoulli_v3/cifar10_train/model.ckpt-121000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv12local34_softmax_0.002_lr_0.00005_ti_121000_Bernoulli_v3/cifar10_train/model.ckpt-121000")
+
         # saver.restore(sess, "./Adam_finetune_freeze_conv1_conv2_0.005_lr_0.0001_ti_121000_Bernoulli/cifar10_train/model.ckpt-121000")
 
         # Start the queue runners.
