@@ -61,6 +61,9 @@ tf.app.flags.DEFINE_string('data_dir', './train_data',
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
 
+tf.app.flags.DEFINE_float('Adam_ilr', 0.01,
+                            """Initial learning rate for Adam optimizer.""")
+
 # Global constants describing the CIFAR-10 data set.
 IMAGE_SIZE = cifar10_input.IMAGE_SIZE
 NUM_CLASSES = cifar10_input.NUM_CLASSES
@@ -76,7 +79,7 @@ NUM_EPOCHS_PER_DECAY = 256.0      # Epochs after which learning rate decays.
 LEARNING_RATE_DECAY_FACTOR = 0.1  # Learning rate decay factor.
 # ADAM_INITIAL_LEARNING_RATE = 0.001       # Initial learning rate for Adam optimizer.
 # ADAM_INITIAL_LEARNING_RATE = 0.0001       # Initial learning rate for Adam optimizer.
-ADAM_INITIAL_LEARNING_RATE = 0.00005       # Initial learning rate for Adam optimizer.
+# ADAM_INITIAL_LEARNING_RATE = 0.00004       # Initial learning rate for Adam optimizer.
 # ADAM_INITIAL_LEARNING_RATE = 0.0       # Initial learning rate for Adam optimizer.
 # INITIAL_LEARNING_RATE = 0.1       # Initial learning rate.
 INITIAL_LEARNING_RATE = 0.01       # Initial learning rate.
@@ -508,7 +511,7 @@ def train(total_loss, global_step):
   mytrainable_list = tf.get_collection('mytrainable_list')
   with tf.control_dependencies([loss_averages_op]):
     # opt = tf.train.GradientDescentOptimizer(lr)
-    opt = tf.train.AdamOptimizer(ADAM_INITIAL_LEARNING_RATE)
+    opt = tf.train.AdamOptimizer(FLAGS.Adam_ilr)
     # grads = opt.compute_gradients(total_loss)
     grads = opt.compute_gradients(total_loss, mytrainable_list)
 

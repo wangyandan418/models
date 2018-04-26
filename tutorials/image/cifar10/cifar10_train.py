@@ -51,11 +51,13 @@ FLAGS = tf.app.flags.FLAGS
 # tf.app.flags.DEFINE_string('train_dir', '/tmp/cifar10_train',
 #                            """Directory where to write event logs """
 #                            """and checkpoint.""")
-tf.app.flags.DEFINE_string('train_dir', './Adam_finetune_conv1_lr_0.00005_wd_0.015_ti_150000_aL1/cifar10_train',
+tf.app.flags.DEFINE_string('train_dir', './Adam_finetune_conv1_lr_0.00004_wd_0.012_ti_150000_aL1_TEST/cifar10_train',
                            """Directory where to write event logs """
                            """and checkpoint.""")
 tf.app.flags.DEFINE_integer('max_steps', 150000,
                             """Number of batches to run.""")
+tf.app.flags.DEFINE_float('weight_decay', 0.01,
+                            """Decay to learn quantized weights.""")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
 tf.app.flags.DEFINE_integer('log_frequency', 1,
@@ -196,20 +198,20 @@ def train():
     # b = tf.assign(b, tf.random_uniform([], 0., 1.))
     # deformable_regularizers = tf.where(tf.less(b, a), l2_loss, quantify_regularizers)
 
-    DECAY = tf.constant(0.015)
+    # DECAY = tf.constant(0.012)
 
     deformable_regularizers = a * l2_loss + (1 - a) * quantify_regularizers
     # Build a Graph that trains the model with one batch of examples and
     # updates the model parameters.
     # train_op = cifar10.train(loss, global_step)
     # total_loss = cross_entropy + 0.001 * l2_loss
-    total_loss = cross_entropy+DECAY*deformable_regularizers
+    total_loss = cross_entropy+FLAGS.weight_decay*deformable_regularizers
     # total_loss = cross_entropy + 0.001 * quantify_regularizers
     train_op = cifar10.train(total_loss, global_step)
 
     tf.summary.scalar('total_loss', total_loss)
     tf.summary.scalar('cross_entropy', cross_entropy)
-    tf.summary.scalar('DECAY*deformable_regularizers', tf.multiply(DECAY, deformable_regularizers))
+    tf.summary.scalar('DECAY*deformable_regularizers', tf.multiply(FLAGS.weight_decay, deformable_regularizers))
 
     # for var in tf.trainable_variables():
     #   pattern = ".*weights.*"
