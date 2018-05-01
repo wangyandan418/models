@@ -54,7 +54,7 @@ EVAL_BATCH_SIZE = 64
 EVAL_FREQUENCY = 100  # Number of steps between evaluations.
 
 WEIGHT_DECAY = 0.002
-ADAM_INITIAL_LEARNING_RATE = 0.00005
+# ADAM_INITIAL_LEARNING_RATE = 0.00005
 
 FLAGS = None
 
@@ -341,20 +341,25 @@ def main(_):
   # f2_fc2 = tf.sign(fc2_weights) * fc2_weights
   # f3_fc2 = tf.sign(fc2_weights - 0.18) * (fc2_weights - 0.18)
 
-  n = tf.constant(2.5)
-  conv1_std_co = tf.constant(0.14301154)
-  conv2_std_co = tf.constant(0.028594673)
-  fc1_std_co = tf.constant(0.016822236)
-  fc2_std_co = tf.constant(0.076400243)
+  # n = tf.constant(2.5)
+  # conv1_std_co = tf.constant(0.14301154)
+  # conv2_std_co = tf.constant(0.028594673)
+  # fc1_std_co = tf.constant(0.016822236)
+  # fc2_std_co = tf.constant(0.076400243)
   
-  print_opn = tf.Print(n, [n], 'n')
-  # print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn, print_ini_op0, print_ini_op1, print_ini_op2, print_ini_op3)
-  # print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn)
+  # print_opn = tf.Print(n, [n], 'n')
+  # # print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn, print_ini_op0, print_ini_op1, print_ini_op2, print_ini_op3)
+  # # print_op = tf.group(print_op0, print_op1, print_op2, print_op3, print_opn)
+  #
+  # conv1_quan = tf.multiply(n, conv1_std_co)
+  # conv2_quan = tf.multiply(n, conv2_std_co)
+  # fc1_quan = tf.multiply(n, fc1_std_co)
+  # fc2_quan = tf.multiply(n, fc2_std_co)
 
-  conv1_quan = tf.multiply(n, conv1_std_co)
-  conv2_quan = tf.multiply(n, conv2_std_co)
-  fc1_quan = tf.multiply(n, fc1_std_co)
-  fc2_quan = tf.multiply(n, fc2_std_co)
+  conv1_quan = 0.36
+  conv2_quan = 0.07
+  fc1_quan = 0.02
+  fc2_quan = 0.18
 
   f1_conv1 = tf.sign(conv1_weights + conv1_quan)*(conv1_weights + conv1_quan)
   f2_conv1 = tf.sign(conv1_weights ) * conv1_weights
@@ -437,19 +442,19 @@ def main(_):
   # controls the learning rate decay.
 
   # Decay once per epoch, using an exponential schedule starting at 0.01.
-  # learning_rate = tf.train.exponential_decay(
-  #     0.01,                # Base learning rate.
-  #     batch * BATCH_SIZE,  # Current index into the dataset.
-  #     train_size,          # Decay step.
-  #     0.975,                # Decay rate.
-  #     staircase=True)
-  # tf.summary.scalar('learning_rate',learning_rate)
+  learning_rate = tf.train.exponential_decay(
+      0.01,                # Base learning rate.
+      batch * BATCH_SIZE,  # Current index into the dataset.
+      train_size,          # Decay step.
+      0.975,                # Decay rate.
+      staircase=True)
+  tf.summary.scalar('learning_rate',learning_rate)
   # Use simple momentum for the optimization.
-  # optimizer = tf.train.MomentumOptimizer(learning_rate,
-  #                                        0.9).minimize(loss,
-  #                                                      global_step=batch)
-  Adam_opt = tf.train.AdamOptimizer(ADAM_INITIAL_LEARNING_RATE)
-  optimizer = Adam_opt.minimize(loss, global_step=batch)
+  optimizer = tf.train.MomentumOptimizer(learning_rate,
+                                         0.9).minimize(loss,
+                                                       global_step=batch)
+  # Adam_opt = tf.train.AdamOptimizer(ADAM_INITIAL_LEARNING_RATE)
+  # optimizer = Adam_opt.minimize(loss, global_step=batch)
 
   # Predictions for the current training minibatch.
   train_prediction = tf.nn.softmax(logits)
