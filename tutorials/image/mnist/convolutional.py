@@ -448,7 +448,8 @@ def main(_):
   # optimizer = tf.train.MomentumOptimizer(learning_rate,
   #                                        0.9).minimize(loss,
   #                                                      global_step=batch)
-  optimizer = tf.train.AdamOptimizer(ADAM_INITIAL_LEARNING_RATE).minimize(loss, global_step=batch)
+  Adam_opt = tf.train.AdamOptimizer(ADAM_INITIAL_LEARNING_RATE)
+  optimizer = Adam_opt.minimize(loss, global_step=batch)
 
   # Predictions for the current training minibatch.
   train_prediction = tf.nn.softmax(logits)
@@ -510,7 +511,7 @@ def main(_):
       # print some extra information once reach the evaluation frequency
       if step % EVAL_FREQUENCY == 0:
         # fetch some extra nodes' data
-        l, lr, predictions = sess.run([loss, optimizer._lr, train_prediction],
+        l, lr, predictions = sess.run([loss, Adam_opt._lr, train_prediction],
                                       feed_dict=feed_dict)
         elapsed_time = time.time() - start_time
         start_time = time.time()
