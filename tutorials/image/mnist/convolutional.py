@@ -23,18 +23,22 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+from datetime import datetime
+
 import argparse
 import gzip
 import os
 import sys
 import time
 import math
+import re
 
 import numpy
 from six.moves import urllib
 from tensorflow.core.framework import summary_pb2
 from six.moves import xrange  # pylint: disable=redefined-builtin
 import tensorflow as tf
+
 
 SOURCE_URL = 'http://yann.lecun.com/exdb/mnist/'
 WORK_DIRECTORY = 'data'
@@ -49,6 +53,8 @@ NUM_EPOCHS = 20
 EVAL_BATCH_SIZE = 64
 EVAL_FREQUENCY = 100  # Number of steps between evaluations.
 
+WEIGHT_DECAY = 0.002
+ADAM_INITIAL_LEARNING_RATE = 0.00005
 
 FLAGS = None
 
@@ -396,7 +402,7 @@ def main(_):
   # a = tf.assign(a,tf.sqrt(1.0-tf.divide(tf.square(batch), tf.cast(tf.square(int(num_epochs * train_size) // BATCH_SIZE),tf.float32))))
 
   # a changes with a ellipse and sets to 0 at the final 5000 steps
-  # a = tf.cond(tf.less(batch, int(num_epochs * train_size) // BATCH_SIZE - 5000), lambda:tf.assign(a,tf.sqrt(1.0-tf.divide(tf.square(batch), tf.cast(tf.square(int(num_epochs * train_size) // BATCH_SIZE),tf.float32)))),lambda:tf.assign(a, 0.))
+  a = tf.cond(tf.less(batch, int(num_epochs * train_size) // BATCH_SIZE - 5000), lambda:tf.assign(a,tf.sqrt(1.0-tf.divide(tf.square(batch), tf.cast(tf.square(int(num_epochs * train_size) // BATCH_SIZE),tf.float32)))),lambda:tf.assign(a, 0.))
 
   # # a changes with a square root of cosine function
   # PI = tf.constant(math.pi)
@@ -408,8 +414,8 @@ def main(_):
   # a =tf.sqrt(a+1e-8)
 
   # # a changes with a cosine function
-  PI = tf.constant(math.pi)
-  a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, int(num_epochs * train_size) // BATCH_SIZE) * batch)) + 1e-8)
+  # PI = tf.constant(math.pi)
+  # a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, int(num_epochs * train_size) // BATCH_SIZE) * batch)) + 1e-8)
 
   b = tf.assign(b, tf.random_uniform([], 0., 1.))
   # deformable_regularizers = tf.Variable(1, trainable=False, name='deformable_regularizers')
@@ -421,7 +427,7 @@ def main(_):
   # Add the regularization term to the loss.
   # loss += 5e-4 * regularizers
   # loss += 5e-4 * quantify_regularizers
-  loss += 5e-4 * deformable_regularizers
+  loss += WEIGHT_DECAY * deformable_regularizers
   # loss += 2e-3 * deformable_regularizers
 
   for var in tf.trainable_variables():
@@ -431,17 +437,18 @@ def main(_):
   # controls the learning rate decay.
 
   # Decay once per epoch, using an exponential schedule starting at 0.01.
-  learning_rate = tf.train.exponential_decay(
-      0.01,                # Base learning rate.
-      batch * BATCH_SIZE,  # Current index into the dataset.
-      train_size,          # Decay step.
-      0.975,                # Decay rate.
-      staircase=True)
-  tf.summary.scalar('learning_rate',learning_rate)
+  # learning_rate = tf.train.exponential_decay(
+  #     0.01,                # Base learning rate.
+  #     batch * BATCH_SIZE,  # Current index into the dataset.
+  #     train_size,          # Decay step.
+  #     0.975,                # Decay rate.
+  #     staircase=True)
+  # tf.summary.scalar('learning_rate',learning_rate)
   # Use simple momentum for the optimization.
-  optimizer = tf.train.MomentumOptimizer(learning_rate,
-                                         0.9).minimize(loss,
-                                                       global_step=batch)
+  # optimizer = tf.train.MomentumOptimizer(learning_rate,
+  #                                        0.9).minimize(loss,
+  #                                                      global_step=batch)
+  optimizer = tf.train.AdamOptimizer(ADAM_INITIAL_LEARNING_RATE).minimize(loss, global_step=batch)
 
   # Predictions for the current training minibatch.
   train_prediction = tf.nn.softmax(logits)
@@ -503,7 +510,7 @@ def main(_):
       # print some extra information once reach the evaluation frequency
       if step % EVAL_FREQUENCY == 0:
         # fetch some extra nodes' data
-        l, lr, predictions = sess.run([loss, learning_rate, train_prediction],
+        l, lr, predictions = sess.run([loss, optimizer._lr, train_prediction],
                                       feed_dict=feed_dict)
         elapsed_time = time.time() - start_time
         start_time = time.time()
