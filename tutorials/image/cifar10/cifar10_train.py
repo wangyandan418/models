@@ -169,12 +169,11 @@ def train():
     softmax_linear_regularizers = tf.where(tf.less(softmax_linear_weights, -tf.divide(softmax_linear_quan, 2.0)), f1_softmax_linear,
                                    tf.where(tf.less(softmax_linear_weights, tf.divide(softmax_linear_quan, 2.0)), f2_softmax_linear, f3_softmax_linear))
 
-    quantify_regularizers = (0.0
-                            # tf.reduce_sum(conv1_regularizers)
-                            #  tf.reduce_sum(conv2_regularizers)
-                            #  tf.reduce_sum(local3_regularizers)
-                            #  tf.reduce_sum(local4_regularizers)
-                            # tf.reduce_sum(softmax_linear_regularizers)
+    quantify_regularizers = (tf.reduce_sum(conv1_regularizers)+
+                             tf.reduce_sum(conv2_regularizers)+
+                             tf.reduce_sum(local3_regularizers)+
+                             tf.reduce_sum(local4_regularizers)+
+                             tf.reduce_sum(softmax_linear_regularizers)
                              )
 
     # # a changes with a square root of cosine function
@@ -191,18 +190,18 @@ def train():
     # a = tf.cond(tf.less(global_step, tf.cast(FLAGS.max_steps - N, tf.int64)), lambda:tf.assign(a,tf.cast(tf.sqrt(1.0-tf.divide(tf.cast(tf.square(global_step),tf.int32), tf.square(FLAGS.max_steps))), tf.float32)),lambda:tf.assign(a, 0.))
 
     # a changes with a cosine function
-    # a = tf.Variable(1., trainable=False, name='a')
-    # tf.summary.scalar(a.op.name, a)
-    # PI = tf.constant(math.pi)
-    # a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
-
-    # a changes with a cosine function sets to 0 at the final 5000 steps (N is the final steps to be set to 0)
     a = tf.Variable(1., trainable=False, name='a')
     tf.summary.scalar(a.op.name, a)
-    N = tf.constant(5000)
     PI = tf.constant(math.pi)
-    a = tf.cond(tf.less(global_step, tf.cast(FLAGS.max_steps - N, tf.int64)), lambda:tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8) ,
-                lambda: tf.assign(a, 0.))
+    a = tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8)
+
+    # a changes with a cosine function sets to 0 at the final 5000 steps (N is the final steps to be set to 0)
+    # a = tf.Variable(1., trainable=False, name='a')
+    # tf.summary.scalar(a.op.name, a)
+    # N = tf.constant(5000)
+    # PI = tf.constant(math.pi)
+    # a = tf.cond(tf.less(global_step, tf.cast(FLAGS.max_steps - N, tf.int64)), lambda:tf.assign(a, 0.5 * (1.0 + tf.cos(tf.divide(PI, FLAGS.max_steps) * tf.cast(global_step, tf.float32))) + 1e-8) ,
+    #             lambda: tf.assign(a, 0.))
 
     # b = tf.Variable(0.5, trainable=False, name='b')
     # tf.summary.scalar(b.op.name, b)
@@ -319,7 +318,7 @@ def train():
         # saver.restore(sess,"./Adam_finetune_freeze_conv12local3_local4_0.004_lr_0.0001_ti_150000_ellipse/cifar10_train/model.ckpt-150000")
         # saver.restore(sess,"./Adam_finetune_freeze_conv12local3_local4_0.008_lr_0.00005_ti_121000_Bernoulli_v3/cifar10_train/model.ckpt-121000")
         # saver.restore(sess,"./Adam_finetune_freeze_conv12local34_softmax_0.002_lr_0.00005_ti_121000_Bernoulli_v3/cifar10_train/model.ckpt-121000")
-        saver.restore(sess,"./Adam_finetune_freeze_conv12local34_softmax_0.002_lr_0.00005_ti_150000_ellipse/cifar10_train/model.ckpt-150000")
+        # saver.restore(sess,"./Adam_finetune_freeze_conv12local34_softmax_0.002_lr_0.00005_ti_150000_ellipse/cifar10_train/model.ckpt-150000")
 
         # saver.restore(sess, "./Adam_finetune_freeze_conv1_conv2_0.005_lr_0.0001_ti_121000_Bernoulli/cifar10_train/model.ckpt-121000")
 
@@ -334,8 +333,8 @@ def train():
         # coord.request_stop()
         # coord.join(threads)
 
-        for step in xrange(FLAGS.max_steps+1):
-        # for step in xrange(1):
+        for step in range(FLAGS.max_steps+1):
+        # for step in range(1):
             if step % 1000 == 0:
                 summary_str = sess.run(summary_op)
                 summary_writer.add_summary(summary_str, step)
