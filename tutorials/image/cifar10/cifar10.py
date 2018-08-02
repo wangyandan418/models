@@ -61,7 +61,7 @@ tf.app.flags.DEFINE_string('data_dir', './train_data',
 tf.app.flags.DEFINE_boolean('use_fp16', False,
                             """Train the model using fp16.""")
 
-tf.app.flags.DEFINE_float('Adam_ilr', 0.00005,
+tf.app.flags.DEFINE_float('Adam_ilr', 0.0002,
                             """Initial learning rate for Adam optimizer.""")
 
 # Global constants describing the CIFAR-10 data set.
@@ -508,12 +508,12 @@ def train(total_loss, global_step):
   loss_averages_op = _add_loss_summaries(total_loss)
 
   # Compute gradients.
-  mytrainable_list = tf.get_collection('mytrainable_list')
+  #mytrainable_list = tf.get_collection('mytrainable_list')
   with tf.control_dependencies([loss_averages_op]):
     # opt = tf.train.GradientDescentOptimizer(lr)
     opt = tf.train.AdamOptimizer(FLAGS.Adam_ilr)
-    # grads = opt.compute_gradients(total_loss)
-    grads = opt.compute_gradients(total_loss, mytrainable_list)
+    grads = opt.compute_gradients(total_loss)
+    #grads = opt.compute_gradients(total_loss, mytrainable_list)
 
   # Apply gradients.
   apply_gradient_op = opt.apply_gradients(grads, global_step=global_step)

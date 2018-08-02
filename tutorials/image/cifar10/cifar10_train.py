@@ -84,7 +84,7 @@ def train():
     cross_entropy, l2_loss = cifar10.loss(logits, labels)
 
     # n = tf.constant(2.5)
-    n = tf.constant(1.0)
+    # n = tf.constant(1.0)
     # conv1_std_co = tf.constant(0.326984)
     # conv2_std_co = tf.constant(0.099911)
     # local3_std_co = tf.constant(0.010653)
@@ -108,35 +108,35 @@ def train():
     local4_quan = tf.constant(0.05)
     softmax_linear_quan = tf.constant(0.29)
 
-    mytrainable_list = []
+    #mytrainable_list = []
     for var in tf.trainable_variables():
-        # mytrainable_list.append(var)
+    #    # mytrainable_list.append(var)
         weights_pattern_conv1 = ".*conv1/weights$"
         weights_pattern_conv2 = ".*conv2/weights$"
         weights_pattern_local3 = ".*local3/weights$"
         weights_pattern_local4 = ".*local4/weights$"
         weights_pattern_softmax_linear = ".*local4/softmax_linear/weights$"
-        bias_pattern = re.compile("(.*conv1/biases$)|(.*conv2/biases$)|(.*local3/biases$)|(.*local4/biases$)|(.*local4/softmax_linear/biases$)")
+    #    bias_pattern = re.compile("(.*conv1/biases$)|(.*conv2/biases$)|(.*local3/biases$)|(.*local4/biases$)|(.*local4/softmax_linear/biases$)")
         if re.compile(weights_pattern_conv1).match(var.op.name):
           conv1_weights = var
-          # mytrainable_list.append(var)
+    #      # mytrainable_list.append(var)
         elif re.compile(weights_pattern_conv2).match(var.op.name):
           conv2_weights = var
-          # mytrainable_list.append(var)
+    #      # mytrainable_list.append(var)
         elif re.compile(weights_pattern_local3).match(var.op.name):
           local3_weights = var
-          # mytrainable_list.append(var)
+    #      # mytrainable_list.append(var)
         elif re.compile(weights_pattern_local4).match(var.op.name):
           local4_weights = var
-          # mytrainable_list.append(var)
+    #      # mytrainable_list.append(var)
         elif re.compile(weights_pattern_softmax_linear).match(var.op.name):
           softmax_linear_weights = var
-          # mytrainable_list.append(var)
-        elif bias_pattern.match(var.op.name):
-          mytrainable_list.append(var)
-        else:
-          raise RuntimeError('Some variables are not matched!!!')
-    tf.add_to_collection('mytrainable_list', mytrainable_list)
+    #      # mytrainable_list.append(var)
+    #    elif bias_pattern.match(var.op.name):
+    #      mytrainable_list.append(var)
+    #    else:
+    #      raise RuntimeError('Some variables are not matched!!!')
+    #tf.add_to_collection('mytrainable_list', mytrainable_list)
 
     f1_conv1 = tf.sign(conv1_weights + conv1_quan) * (conv1_weights + conv1_quan)
     f2_conv1 = tf.sign(conv1_weights) * conv1_weights
