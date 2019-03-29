@@ -46,19 +46,17 @@ import re
 
 FLAGS = tf.app.flags.FLAGS
 
-# tf.app.flags.DEFINE_string('eval_dir', '/tmp/cifar10_eval',
-#                            """Directory where to write event logs.""")
-tf.app.flags.DEFINE_string('eval_dir', './Adam_finetune_bias_tuning_lr_0.00005_ti_150000_ellipse/cifar10_eval',
+tf.app.flags.DEFINE_string('eval_dir', './finetune_models/jetc_conv1_conv2_lr_0.0001_wd_0.05_ti_200000/cifar10_eval',
                            """Directory where to write event logs.""")
 tf.app.flags.DEFINE_string('eval_data', 'test',
                            """Either 'test' or 'train_eval'.""")
-tf.app.flags.DEFINE_string('checkpoint_dir', './Adam_finetune_bias_tuning_lr_0.00005_ti_150000_ellipse/cifar10_train',
+tf.app.flags.DEFINE_string('checkpoint_dir', './jetc_conv1_conv2_lr_0.0001_wd_0.05_ti_200000/cifar10_train',
                            """Directory where to read model checkpoints.""")
 tf.app.flags.DEFINE_integer('eval_interval_secs', 60 * 5,
                             """How often to run the eval.""")
 tf.app.flags.DEFINE_integer('num_examples', 10000,
                             """Number of examples to run.""")
-tf.app.flags.DEFINE_boolean('run_once', False,
+tf.app.flags.DEFINE_boolean('run_once', True,
                          """Whether to run eval only once.""")
 
 
@@ -87,24 +85,16 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
       print('No checkpoint file found')
       return
 
-    # conv1_quan = tf.constant(0.15)
-    # conv2_quan = tf.constant(0.08)
-    # local3_quan = tf.constant(0.04)
-    # local4_quan = tf.constant(0.06)
-    # softmax_linear_quan = tf.constant(0.29)
-    conv1_quan = tf.constant(0.15)
-    conv2_quan = tf.constant(0.07)
-    local3_quan = tf.constant(0.03)
-    local4_quan = tf.constant(0.05)
-    softmax_linear_quan = tf.constant(0.29)
-    # sess.run(tf.Print(conv1_quan, [conv1_quan], 'conv1_quan'))
-
+    conv1_quan = tf.constant(0.14)
+    conv2_quan = tf.constant(0.13)
+    conv3_quan = tf.constant(0.075)
+    softmax_linear_quan = tf.constant(0.28)
+    #
     for var in tf.trainable_variables():
         weights_pattern_conv1 = "conv1/weights$"
         weights_pattern_conv2 = "conv2/weights$"
-        weights_pattern_local3 = "local3/weights$"
-        weights_pattern_local4 = "local4/weights$"
-        weights_pattern_softmax_linear = "local4/softmax_linear/weights$"
+        weights_pattern_conv3 = "conv3/weights$"
+        weights_pattern_softmax_linear = "softmax_linear/weights$"
         # #
         if re.compile(weights_pattern_conv1).match(var.op.name):
           conv1_ones_shape = tf.ones(shape=tf.shape(var))
@@ -114,18 +104,14 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
           conv2_ones_shape = tf.ones(shape=tf.shape(var))
           sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv2_quan, 2.0)), -conv2_quan * conv2_ones_shape,
                   tf.where(tf.less(var, tf.divide(conv2_quan, 2.0)), 0. * conv2_ones_shape, conv2_quan * conv2_ones_shape))))
-        elif re.compile(weights_pattern_local3).match(var.op.name):
-          local3_ones_shape = tf.ones(shape=tf.shape(var))
-          sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(local3_quan, 2.0)), -local3_quan * local3_ones_shape,
-                  tf.where(tf.less(var, tf.divide(local3_quan, 2.0)), 0. * local3_ones_shape, local3_quan * local3_ones_shape))))
-        elif re.compile(weights_pattern_local4).match(var.op.name):
-          local4_ones_shape = tf.ones(shape=tf.shape(var))
-          sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(local4_quan, 2.0)), -local4_quan * local4_ones_shape,
-                  tf.where(tf.less(var, tf.divide(local4_quan, 2.0)), 0. * local4_ones_shape, local4_quan * local4_ones_shape))))
-        elif re.compile(weights_pattern_softmax_linear).match(var.op.name):
-          softmax_linear_ones_shape = tf.ones(shape=tf.shape(var))
-          sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(softmax_linear_quan, 2.0)), -softmax_linear_quan * softmax_linear_ones_shape,
-                  tf.where(tf.less(var, tf.divide(softmax_linear_quan, 2.0)), 0. * softmax_linear_ones_shape, softmax_linear_quan * softmax_linear_ones_shape))))
+        # elif re.compile(weights_pattern_conv3).match(var.op.name):
+        #   conv3_ones_shape = tf.ones(shape=tf.shape(var))
+        #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(conv3_quan, 2.0)), -conv3_quan * conv3_ones_shape,
+        #           tf.where(tf.less(var, tf.divide(conv3_quan, 2.0)), 0. * conv3_ones_shape, conv3_quan * conv3_ones_shape))))
+        # elif re.compile(weights_pattern_softmax_linear).match(var.op.name):
+        #   softmax_linear_ones_shape = tf.ones(shape=tf.shape(var))
+        #   sess.run(tf.assign(var, tf.where(tf.less(var, -tf.divide(softmax_linear_quan, 2.0)), -softmax_linear_quan * softmax_linear_ones_shape,
+        #           tf.where(tf.less(var, tf.divide(softmax_linear_quan, 2.0)), 0. * softmax_linear_ones_shape, softmax_linear_quan * softmax_linear_ones_shape))))
 
 
     # Start the queue runners.
@@ -149,6 +135,7 @@ def eval_once(saver, summary_writer, top_k_op, summary_op):
       precision = true_count / total_sample_count
       # print('%s: precision @ 1 = %.3f' % (datetime.now(), precision))
       print('%s: precision before quantization @ 1 = %.3f' % (datetime.now(), precision))
+      sess.run(tf.Print(softmax_linear_quan, [softmax_linear_quan], 'softmax_linear_quan'))
 
       summary = tf.Summary()
       summary.ParseFromString(sess.run(summary_op))
